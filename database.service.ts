@@ -23,6 +23,7 @@ export class DatabaseService {
   private database: Database | undefined;
   private replicator: Replicator | undefined;
   private engine: CblReactNativeEngine | undefined;
+  private postCollection: Collection | null = null;
 
   constructor() {
     //must create a new engine to use the SDK in a React Native environment
@@ -95,7 +96,25 @@ export class DatabaseService {
    */
   public async getPosts() {
     try {
-      const queryStr = 'SELECT * FROM inventory.post as post';
+      const queryStr = `
+        SELECT 
+          post.*, 
+          meta().id AS docId 
+        FROM inventory.post AS post
+      `;
+      return this.database?.createQuery(queryStr).execute();
+    } catch (error) {
+      console.debug(`Error: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * returns all hotels in the inventory.hotel collection
+   */
+  public async deletePosts(id: string) {
+    try {
+      const queryStr = `DELETE FROM inventory.post WHERE post.id = ${id}`;
       return this.database?.createQuery(queryStr).execute();
     } catch (error) {
       console.debug(`Error: ${error}`);
@@ -180,6 +199,7 @@ export class DatabaseService {
   async getPostCollection() {
     if (!this.database) throw new Error('Database not initialized');
     const collection = await this.database.collection('post', 'inventory');
+    this.postCollection = collection;
     return collection;
   }
 
@@ -503,5 +523,12 @@ export class DatabaseService {
       console.error('❌ Failed to save post:', error);
       throw error;
     }
+  }
+
+  public getCachedPostCollection(): Collection {
+    if (!this.postCollection) {
+      throw new Error('Collection not initialized. Call init() first.');
+    }
+    return this.postCollection;
   }
 }

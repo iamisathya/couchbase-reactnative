@@ -8,7 +8,7 @@ class AxiosService {
 
   async getRandomPost(): Promise<any> {
     try {
-      const randomId = Math.floor(Math.random() * 100) + 1; // IDs range from 1 to 100
+      const randomId = Math.floor(Math.random() * 100) + 1; // IDs range from 1 to 1000
       const response = await this.api.get(`/posts/${randomId}`);
       return response.data;
     } catch (error: any) {

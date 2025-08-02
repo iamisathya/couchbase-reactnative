@@ -1377,6 +1377,13 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
+"@legendapp/list@^1.1.4":
+  version "1.1.4"
+  resolved "https://registry.yarnpkg.com/@legendapp/list/-/list-1.1.4.tgz#2d8f6ade038735ab1ca79fd493366ec464331eb8"
+  integrity sha512-Q+eLlMilmV2F8/orcR+0XFq543Up3V06WXqG/lpGqowo5reSXsjVCo7dQWNpvU+1+stb87SeAHw9k130DKa+iw==
+  dependencies:
+    use-sync-external-store "^1.5.0"
+
 "@nicolo-ribaudo/eslint-scope-5-internals@5.1.1-v1":
   version "5.1.1-v1"
   resolved "https://registry.yarnpkg.com/@nicolo-ribaudo/eslint-scope-5-internals/-/eslint-scope-5-internals-5.1.1-v1.tgz#dbf733a965ca47b1973177dc0bb6c889edcfb129"
@@ -5583,7 +5590,7 @@ prompts@^2.0.1, prompts@^2.4.2:
     kleur "^3.0.3"
     sisteransi "^1.0.5"
 
-prop-types@^15.8.1:
+prop-types@^15.5.10, prop-types@^15.8.1:
   version "15.8.1"
   resolved "https://registry.yarnpkg.com/prop-types/-/prop-types-15.8.1.tgz#67d87bf1a694f48435cf332c24af10214a3140b5"
   integrity sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==
@@ -5720,6 +5727,13 @@ react-native-svg@^15.12.1:
     css-select "^5.1.0"
     css-tree "^1.1.3"
     warn-once "0.1.1"
+
+react-native-swipeable-row@^0.8.1:
+  version "0.8.1"
+  resolved "https://registry.yarnpkg.com/react-native-swipeable-row/-/react-native-swipeable-row-0.8.1.tgz#6076ab2568c36cd96bc73882470598cfac3b20c9"
+  integrity sha512-DMarMMIPihwIyOlYtym2VwzCUvciDefrb38JEMHvHXUwoKhWGQgfYoBi1csYYHeg/AawBr1Oel2W1rowV4ixUA==
+  dependencies:
+    prop-types "^15.5.10"
 
 react-native-uuid@^2.0.2:
   version "2.0.3"

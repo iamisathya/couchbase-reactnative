@@ -6,8 +6,16 @@
  */
 
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, FlatList, RefreshControl } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  RefreshControl,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
 import { useDatabase } from '../../DatabaseProvider';
+import { LegendList } from '@legendapp/list';
 
 function PostScreen() {
   const [allHotels, setAllHotels] = useState<any>([]);
@@ -21,14 +29,12 @@ function PostScreen() {
     const setup = async () => {
       const getHotels = async () => {
         const posts = await dbService.getPosts();
-        let maps = posts?.map(i => i.post);
-        setAllHotels(maps);
+        // let maps = posts?.map(post => ({docId: post.docId, ...post}));
+        setAllHotels(posts);
       };
 
       await getHotels();
-
       postCollection = await dbService.getPostCollection();
-
       listenerToken = postCollection.addChangeListener(async () => {
         await getHotels();
       });
@@ -52,28 +58,57 @@ function PostScreen() {
     setAllHotels(maps);
   };
 
+  const onPressDelete = async (docId: string) => {
+     Alert.alert('Delete', 'Are you sure, you want tot delete this post', [
+      {
+        text: 'Cancel',
+        onPress: () => console.log('Cancel Pressed'),
+        style: 'cancel',
+      },
+      {text: 'OK', style: 'destructive', onPress: async () => {
+        // const result = await dbService.deletePosts(docId);    
+        const cllection = await dbService.getCachedPostCollection();
+        const doc = await cllection.getDocument(docId);
+        if (doc) {          
+          await cllection.deleteDocument(doc);
+        }        
+      }},
+    ]);
+  }
+
   const renderListItem = ({ index, item }) => {
+    const { post: { body, id, title} } = item
     return (
       <View style={styles.itcontainer} key={index.toString()}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.userId}>Post ID: {item.id}</Text>
-        <Text style={styles.body}>{item.body}</Text>
+        <View style={styles.topContainer}>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.userId}>Post ID: {id}</Text>
+          <Text style={styles.body}>{body}</Text>
+          <View style={styles.borderLine} />
+        </View>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.updateBtn}>
+            <Text>Update</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteBtn} onPress={() => onPressDelete(item.docId)}>
+            <Text style={styles.deleteText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
 
   return (
     <View style={styles.container}>
-      <FlatList
+      <LegendList
         data={allHotels}
         renderItem={renderListItem}
+        recycleItems
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            // Optional: Customize colors for Android
             colors={['#9Bd35A', '#689F38']}
-            // Optional: Customize background color for Android
             progressBackgroundColor="#fff"
           />
         }
@@ -88,15 +123,14 @@ const styles = StyleSheet.create({
   },
   itcontainer: {
     backgroundColor: '#fff',
-    padding: 16,
     marginVertical: 8,
+    marginHorizontal: 12,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
-    marginHorizontal: 12,
   },
   title: {
     fontSize: 16,
@@ -115,6 +149,41 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#555',
   },
+  borderLine: {
+    height: 1,
+    color: 'black',
+    width: '100%',
+  },
+  buttonContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    height: 42,
+    alignItems: 'center',
+    borderTopWidth: 2,
+    marginVertical: 12,
+  },
+  topContainer: {
+    padding: 16,
+  },
+  verticalBorder: {
+    width: 2,
+    height: '100%',
+  },
+  deleteText: {
+    color: 'red',
+    fontSize: 16,
+    fontWeight:  'semibold'
+  },
+  updateBtn: {
+    flex: 1,
+    alignItems: 'center'
+  },
+   deleteBtn: {
+    flex: 1,
+    borderLeftWidth: 2,
+    alignItems: 'center'
+  }
 });
 
 export default PostScreen;
