@@ -7,15 +7,16 @@
 
 
 import React from 'react';
-import Main from './Main';
 import { DatabaseProvider } from './DatabaseProvider';
-
+import MainNavigation from './src/navigation/MainNavigation';
+import { NavigationContainer } from '@react-navigation/native';
 
 function App() {
-
   return (
     <DatabaseProvider>
-      <Main />
+      <NavigationContainer>
+        <MainNavigation/>
+      </NavigationContainer>
     </DatabaseProvider>
   );
 }

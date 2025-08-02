@@ -90,6 +90,19 @@ export class DatabaseService {
     }
   }
 
+    /**
+   * returns all hotels in the inventory.hotel collection
+   */
+  public async getPosts() {
+    try {
+      const queryStr = 'SELECT * FROM inventory.post as post';
+      return this.database?.createQuery(queryStr).execute();
+    } catch (error) {
+      console.debug(`Error: ${error}`);
+      throw error;
+    }
+  }
+
   /**
    * returns an array of ResultSet objects for the locations that match the search terms of searchName, searchLocation, and activityType in the inventory.location collection
    * @param searchName - string value to search in the name or title fields
@@ -164,6 +177,12 @@ export class DatabaseService {
     return collection;
   }
 
+  async getPostCollection() {
+    if (!this.database) throw new Error('Database not initialized');
+    const collection = await this.database.collection('post', 'inventory');
+    return collection;
+  }
+
   /**
    * Sets up the database with the necessary configurations and collections.
    * @private
@@ -189,22 +208,19 @@ export class DatabaseService {
       this.database = new Database('travel', dc);
 
       await this.database.open();
-      console.log("Step 1")
       const collections = await this.database.collections();
-      console.log("Step 2")
       //check to see if we are missing the travel sample collections, if so then create them
       if (collections.length === 1) {
-        console.log("Step 3")
         await this.database.createCollection('airline', 'inventory');
         await this.database.createCollection('airport', 'inventory');
         await this.database.createCollection('hotel', 'inventory');
+        await this.database.createCollection('post', 'inventory');
         await this.database.createCollection('landmark', 'inventory');
         await this.database.createCollection('route', 'inventory');
         await this.database.createCollection('users', 'tenant_agent_00');
         await this.database.createCollection('bookings', 'tenant_agent_00');
       }
     } catch (error) {
-        console.log("Step 4 if fails")
       console.error('❌ Failed to setup database hotel:', error);
       throw error;
     }
@@ -300,6 +316,7 @@ export class DatabaseService {
   private async setupIndexes() {
     if (this.database !== undefined) {
       await this.setupHotelIndexes();
+      await this.setupPostIndexes();
       await this.setupLandmarkIndexes();
     }
   }
@@ -415,6 +432,75 @@ export class DatabaseService {
       return docId;
     } catch (error) {
       console.error('❌ Failed to save hotel:', error);
+      throw error;
+    }
+  }
+
+   /**
+   * Sets up the indexes for the `hotel` collection in the database.
+   *
+   * This function creates the following indexes for the `hotel` collection:
+   * - `idxTextSearch`: A full-text index on the `address`, `city`, `country`, and `description` fields.
+   * - `idxVacancy`: A value index on the `vacancy` field.
+   *
+   * The full-text index (`idxTextSearch`) is configured to ignore accents.
+   *
+   * @private
+   * @throws Will throw an error if the index creation fails.
+   */
+  private async setupPostIndexes() {
+    const postCollection = await this.database?.collection(
+      'post',
+      'inventory',
+    );
+    //setup full text index for hotel collection
+    const ipId = FullTextIndexItem.property('id');
+    const ipUserId = FullTextIndexItem.property('userId');
+    const ipTitle = FullTextIndexItem.property('title');
+    const ipBody = FullTextIndexItem.property('body');
+    const idxFullTextSearch = IndexBuilder.fullTextIndex(
+      ipId,
+      ipUserId,
+      ipTitle,
+      ipBody,
+    ).setIgnoreAccents(true);
+
+    await postCollection?.createIndex('idxTextSearch', idxFullTextSearch);
+
+    //setup index to filter hotels by vacancy
+    const vacancyValueIndex = IndexBuilder.valueIndex(
+      ValueIndexItem.property('vacancy'),
+    );
+    await postCollection?.createIndex('idxVacancy', vacancyValueIndex);
+  }
+
+
+  public async savePost(hotelData: {
+    userId: string;
+    id: string;
+    title: string;
+    body: string;
+  }) {
+    try {
+      const postCollection = await this.database?.collection(
+        'post',
+        'inventory',
+      );
+      if (!postCollection) throw new Error('Post collection not found');
+
+      const docId = `post_${new Date().getTime()}`;
+      const doc = new MutableDocument(docId);
+
+      doc.setString('id', hotelData.id);
+      doc.setString('userdId', hotelData.userId);
+      doc.setString('title', hotelData.title);
+      doc.setString('body', hotelData.body);
+
+      await postCollection.save(doc);
+      console.log(`✅ Post document ${docId} saved.`);
+      return docId;
+    } catch (error) {
+      console.error('❌ Failed to save post:', error);
       throw error;
     }
   }
