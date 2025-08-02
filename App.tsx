@@ -6,9 +6,10 @@
  */
 
 
-import Main from './Main';
 import React from 'react';
-import DatabaseProvider from './DatabaseProvider';
+import Main from './Main';
+import { DatabaseProvider } from './DatabaseProvider';
+
 
 function App() {
 
