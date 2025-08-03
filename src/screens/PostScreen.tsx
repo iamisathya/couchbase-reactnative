@@ -52,10 +52,9 @@ function PostScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    const posts = await dbService.getPosts();
-    let maps = posts?.map(i => i.post);
+    const posts = await dbService.getPosts();    
     setRefreshing(false);
-    setAllHotels(maps);
+    setAllHotels(posts);
   };
 
   const onPressDelete = async (docId: string) => {
@@ -104,6 +103,7 @@ function PostScreen() {
         data={allHotels}
         renderItem={renderListItem}
         recycleItems
+        keyExtractor={(item, _) => item.docId }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

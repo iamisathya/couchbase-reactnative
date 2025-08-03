@@ -19,8 +19,8 @@ function HomeScreen() {
   }
 
   const onPressAddToDb = async() => {
-    const id = await dbService.savePost(post);
-    console.log("PostId", id)
+    await dbService.savePost(post);
+    refetch()
   }
   
   return (
