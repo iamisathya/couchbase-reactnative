@@ -2333,6 +2333,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - RNSnackbar (2.9.0):
+    - React-Core
   - RNSVG (15.12.1):
     - boost
     - DoubleConversion
@@ -2472,6 +2474,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNScreens (from `../node_modules/react-native-screens`)
+  - RNSnackbar (from `../node_modules/react-native-snackbar`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - SocketRocket (~> 0.7.1)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
@@ -2633,6 +2636,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-gesture-handler"
   RNScreens:
     :path: "../node_modules/react-native-screens"
+  RNSnackbar:
+    :path: "../node_modules/react-native-snackbar"
   RNSVG:
     :path: "../node_modules/react-native-svg"
   Yoga:
@@ -2715,6 +2720,7 @@ SPEC CHECKSUMS:
   ReactCommon: 592ef441605638b95e533653259254b4bd35ff4f
   RNGestureHandler: a0c83d8e4422f2ac04d1acb1741866a5184c7b73
   RNScreens: c63849403489bd068ea160f276fbc8416f19f2f7
+  RNSnackbar: c1b235eb606b03938c693ce769ed3059c31dff9b
   RNSVG: d407e5f2ede12bbcd92e4d23a405ad5a5f7294a3
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: a742cc68e8366fcfc681808162492bc0aa7a9498

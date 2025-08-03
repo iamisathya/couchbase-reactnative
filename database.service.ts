@@ -525,6 +525,45 @@ export class DatabaseService {
     }
   }
 
+  public async updatePost(docId: string, updatedData: {
+  title: string;
+  body: string;
+}) {
+    try {
+      const postCollection = await this.database?.collection('post', 'inventory');
+      if (!postCollection) throw new Error('Post collection not found');
+
+      const existingDoc = await postCollection.getDocument(docId);
+      if (!existingDoc) {
+        throw new Error(`Document with ID ${docId} not found`);
+      }
+
+      // Create a new MutableDocument using existing data
+      const mutableDoc = new MutableDocument(docId);
+
+      // Retain existing fields
+      const existingData = existingDoc.toDictionary()// All existing fields as key-value pairs
+      for (const key in existingData) {
+        if (!(key in updatedData)) {
+          mutableDoc.setValue(key, existingData[key]); // Retain untouched fields
+        }
+      }
+
+      // Apply updated fields
+      mutableDoc.setString('title', updatedData.title);
+      mutableDoc.setString('body', updatedData.body);
+
+      // Save the updated document
+      await postCollection.save(mutableDoc);
+      console.log(`✅ Document ${docId} updated successfully.`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Failed to update post ${docId}:`, error);
+      throw error;
+    }
+  }
+
+
   public getCachedPostCollection(): Collection {
     if (!this.postCollection) {
       throw new Error('Collection not initialized. Call init() first.');

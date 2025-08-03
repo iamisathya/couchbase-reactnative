@@ -4,4 +4,5 @@
 4. Fetch a random post from jsonplaceholder 🤿
 5. It's not FlatList or even FlashList powered. It built using superfast LegendList 🚝
 6. Pull to refresh & add collection change liistener to update list automatically 
+7. Refrsh current post after adding to db
 

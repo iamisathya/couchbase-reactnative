@@ -4,11 +4,24 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import ProfileScreen from '../screens/ProfileScreen';
 import PostScreen from '../screens/PostScreen';
-import Main from '../../Main';
+
 import { Home, List, User } from 'lucide-react-native';
 import HomeScreen from '../screens/HomeScreen';
+import { createStackNavigator } from '@react-navigation/stack';
+import EditPostScreen from '../screens/EditPostScreen';
 
 const Tab = createBottomTabNavigator();
+
+const PostStackNaviagtion = createStackNavigator();
+function PostStack() {
+  return (
+    <PostStackNaviagtion.Navigator>
+      <PostStackNaviagtion.Screen name="Post" component={PostScreen} />
+      <PostStackNaviagtion.Screen name="EditPost" component={EditPostScreen} />
+    </PostStackNaviagtion.Navigator>
+  );
+}
+
 
 export default function MainNavigation() {
   return (
@@ -28,7 +41,7 @@ export default function MainNavigation() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="List" component={PostScreen} />
+      <Tab.Screen name="List" component={PostStack} options={{headerShown: false}} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

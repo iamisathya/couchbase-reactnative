@@ -16,11 +16,13 @@ import {
 } from 'react-native';
 import { useDatabase } from '../../DatabaseProvider';
 import { LegendList } from '@legendapp/list';
+import { useNavigation } from '@react-navigation/native';
 
 function PostScreen() {
   const [allHotels, setAllHotels] = useState<any>([]);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const dbService = useDatabase();
+  const navigation = useNavigation();
 
   useEffect(() => {
     let listenerToken: any;
@@ -75,6 +77,10 @@ function PostScreen() {
     ]);
   }
 
+  const onPressEditPost = (item) => {
+    navigation.navigate('EditPost', {item: item})
+  }
+
   const renderListItem = ({ index, item }) => {
     const { post: { body, id, title} } = item
     return (
@@ -86,7 +92,7 @@ function PostScreen() {
           <View style={styles.borderLine} />
         </View>
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.updateBtn}>
+          <TouchableOpacity style={styles.updateBtn} onPress={() => onPressEditPost(item)}>
             <Text>Update</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.deleteBtn} onPress={() => onPressDelete(item.docId)}>
