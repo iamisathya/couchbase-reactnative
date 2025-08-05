@@ -7,3 +7,8 @@
 7. Refrsh current post after adding to db.
 8. Tab & Stack naviagtion.
 9. Feedaback for user operation.
+
+
+// To do 
+1. Adding support fo Sync gateway
+2. Adding support of checking multiple peer syncing 
