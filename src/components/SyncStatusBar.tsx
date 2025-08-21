@@ -1,20 +1,28 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSync } from '../hooks/useSync';
+import NetworkService from '../services/NetworkService';
 
 interface SyncStatusBarProps {
   showDetails?: boolean;
 }
 
 export const SyncStatusBar: React.FC<SyncStatusBarProps> = ({ showDetails = false }) => {
-  const { syncStatus, networkStatus, isOnline } = useSync();
+  const { syncStatus, networkStatus, isOnline, isInternetReachable } = useSync();
+
+  const handleNetworkTest = async () => {
+    console.log('🔍 Testing network connectivity...');
+    await NetworkService.getDetailedNetworkInfo();
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.statusRow}>
-        <Text style={[styles.statusText, { color: isOnline ? '#4CAF50' : '#F44336' }]}>
-          {isOnline ? '🟢 Online' : '🔴 Offline'}
-        </Text>
+        <TouchableOpacity onPress={handleNetworkTest}>
+          <Text style={[styles.statusText, { color: isOnline ? '#4CAF50' : '#F44336' }]}>
+            {isOnline ? '🟢 Online' : '🔴 Offline'}
+          </Text>
+        </TouchableOpacity>
         
         {syncStatus.isSyncing && (
           <Text style={styles.syncText}>🔄 Syncing...</Text>
@@ -40,6 +48,14 @@ export const SyncStatusBar: React.FC<SyncStatusBarProps> = ({ showDetails = fals
               Connection: {networkStatus.type}
             </Text>
           )}
+          
+          <Text style={styles.detailText}>
+            Internet Reachable: {isInternetReachable ? '✅ Yes' : '❌ No'}
+          </Text>
+          
+          <Text style={styles.detailText}>
+            Tap status to test connectivity
+          </Text>
         </View>
       )}
     </View>

@@ -107,6 +107,7 @@ export const useSync = () => {
     syncStatus,
     networkStatus,
     isOnline: NetworkService.isOnline(),
+    isInternetReachable: NetworkService.isInternetReachable(),
     fetchFromJSONPlaceholder,
     syncFromCapella,
     syncToCloud,

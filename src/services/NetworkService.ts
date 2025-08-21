@@ -46,7 +46,14 @@ class NetworkService {
       listener(newStatus);
     });
 
-    console.log('Network Status:', newStatus);
+    // Enhanced logging for debugging
+    console.log('🌐 Network Status Update:', {
+      isConnected: newStatus.isConnected,
+      isInternetReachable: newStatus.isInternetReachable,
+      type: newStatus.type,
+      isOnline: this.isOnline(),
+      isInternetReachableStrict: this.isInternetReachable()
+    });
   };
 
   /**
@@ -76,6 +83,15 @@ class NetworkService {
    * Check if currently online
    */
   public isOnline(): boolean {
+    // If we have a connection, consider it online
+    // isInternetReachable can be unreliable on some devices
+    return this.currentStatus.isConnected;
+  }
+
+  /**
+   * Check if internet is reachable (more strict check)
+   */
+  public isInternetReachable(): boolean {
     return this.currentStatus.isConnected && 
            (this.currentStatus.isInternetReachable === null || this.currentStatus.isInternetReachable);
   }
@@ -96,8 +112,7 @@ class NetworkService {
       }, timeout);
 
       const checkListener = (status: NetworkStatus) => {
-        if (status.isConnected && 
-            (status.isInternetReachable === null || status.isInternetReachable)) {
+        if (status.isConnected) {
           clearTimeout(timeoutId);
           this.removeListener(checkListener);
           resolve(true);
@@ -106,6 +121,53 @@ class NetworkService {
 
       this.addListener(checkListener);
     });
+  }
+
+  /**
+   * Test internet connectivity by making a simple HTTP request
+   */
+  public async testInternetConnectivity(): Promise<boolean> {
+    try {
+      console.log('🧪 Testing internet connectivity...');
+      
+      // Try to fetch a simple resource
+      const response = await fetch('https://httpbin.org/get', {
+        method: 'GET',
+        timeout: 5000,
+      });
+      
+      const isConnected = response.ok;
+      console.log('🧪 Internet connectivity test result:', isConnected);
+      
+      return isConnected;
+    } catch (error) {
+      console.log('🧪 Internet connectivity test failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get detailed network information for debugging
+   */
+  public async getDetailedNetworkInfo(): Promise<any> {
+    try {
+      const netInfo = await NetInfo.fetch();
+      const connectivityTest = await this.testInternetConnectivity();
+      
+      const detailedInfo = {
+        netInfo,
+        connectivityTest,
+        isOnline: this.isOnline(),
+        isInternetReachable: this.isInternetReachable(),
+        timestamp: new Date().toISOString(),
+      };
+      
+      console.log('🔍 Detailed Network Info:', detailedInfo);
+      return detailedInfo;
+    } catch (error) {
+      console.error('🔍 Failed to get detailed network info:', error);
+      return null;
+    }
   }
 
   /**
