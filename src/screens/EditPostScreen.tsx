@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
-import Snackbar from 'react-native-snackbar';
+// import Snackbar from 'react-native-snackbar';
 
 import { useDatabase } from '../../DatabaseProvider';
 import CBTextInput from '../components/CBTextInput/CBTextInput';
@@ -49,10 +49,10 @@ function EditPostScreen({ route }) {
         body,
       });
       if (status) {
-        Snackbar.show({
-          text: 'Post updated successfully',
-          duration: Snackbar.LENGTH_SHORT,
-        });
+        // Snackbar.show({
+        //   text: 'Post updated successfully',
+        //   duration: Snackbar.LENGTH_SHORT,
+        // });
         setTimeout(() => {
           navigation.goBack();
         }, 2000);
