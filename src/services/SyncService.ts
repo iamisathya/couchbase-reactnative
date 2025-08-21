@@ -310,6 +310,48 @@ class SyncService {
   }
 
   /**
+   * Clear all posts from local database and sync deletions to Capella
+   */
+  public async clearAllPosts(): Promise<number> {
+    if (!this.dbService) {
+      throw new Error('Database service not initialized');
+    }
+
+    if (!NetworkService.isOnline()) {
+      console.log('Network offline, clearing local posts only');
+      // Still clear locally even if offline
+      return await this.dbService.deleteAllPosts();
+    }
+
+    try {
+      this.updateSyncStatus({ isSyncing: true, error: null });
+      console.log('🗑️ Clearing all posts...');
+
+      // Delete all posts from local database
+      const deletedCount = await this.dbService.deleteAllPosts();
+
+      // Force sync deletions to cloud
+      await this.forceSyncDeletions();
+
+      this.updateSyncStatus({
+        isSyncing: false,
+        lastSyncTime: new Date(),
+        error: null,
+      });
+
+      console.log(`✅ Cleared ${deletedCount} posts from local and cloud databases`);
+      return deletedCount;
+    } catch (error) {
+      console.error('❌ Failed to clear all posts:', error);
+      this.updateSyncStatus({
+        isSyncing: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Get pending changes count
    */
   public async getPendingChangesCount(): Promise<number> {

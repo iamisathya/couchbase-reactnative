@@ -94,6 +94,15 @@ export const useSync = () => {
     }
   };
 
+  const clearAllPosts = async () => {
+    try {
+      return await SyncService.clearAllPosts();
+    } catch (error) {
+      console.error('Clear all posts failed:', error);
+      throw error;
+    }
+  };
+
   return {
     syncStatus,
     networkStatus,
@@ -105,5 +114,6 @@ export const useSync = () => {
     waitForNetworkAndSync,
     forceSyncDeletions,
     fetchAndSyncToCapella,
+    clearAllPosts,
   };
 };

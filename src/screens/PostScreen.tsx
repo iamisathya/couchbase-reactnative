@@ -17,12 +17,15 @@ import {
 import { useDatabase } from '../../DatabaseProvider';
 import { LegendList } from '@legendapp/list';
 import { useNavigation } from '@react-navigation/native';
+import { useSync } from '../hooks/useSync';
+import Snackbar from 'react-native-snackbar';
 
 function PostScreen() {
   const [allHotels, setAllHotels] = useState<any>([]);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const dbService = useDatabase();
   const navigation = useNavigation();
+  const { clearAllPosts, syncStatus, isOnline } = useSync();
 
   useEffect(() => {
     let listenerToken: any;
@@ -81,6 +84,45 @@ function PostScreen() {
     navigation.navigate('EditPost', {item: item})
   }
 
+  const onPressClearAll = async () => {
+    if (allHotels.length === 0) {
+      Snackbar.show({
+        text: 'No posts to clear',
+        duration: Snackbar.LENGTH_SHORT,
+      });
+      return;
+    }
+
+    Alert.alert(
+      'Clear All Posts',
+      `Are you sure you want to delete all ${allHotels.length} posts? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const deletedCount = await clearAllPosts();
+              Snackbar.show({
+                text: `Cleared ${deletedCount} posts from device and cloud`,
+                duration: Snackbar.LENGTH_LONG,
+              });
+            } catch (error) {
+              Snackbar.show({
+                text: 'Failed to clear all posts',
+                duration: Snackbar.LENGTH_LONG,
+              });
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderListItem = ({ index, item }) => {
     const { post: { body, id, title} } = item
     return (
@@ -105,6 +147,27 @@ function PostScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header with Clear All button */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Posts ({allHotels.length})</Text>
+        <TouchableOpacity 
+          style={[styles.clearAllButton, { opacity: allHotels.length === 0 ? 0.5 : 1 }]} 
+          onPress={onPressClearAll}
+          disabled={allHotels.length === 0 || syncStatus.isSyncing}
+        >
+          <Text style={styles.clearAllButtonText}>
+            {syncStatus.isSyncing ? 'Clearing...' : 'Clear All'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Network Status */}
+      {!isOnline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineText}>⚠️ Offline - Changes will sync when online</Text>
+        </View>
+      )}
+
       <LegendList
         data={allHotels}
         renderItem={renderListItem}
@@ -126,6 +189,44 @@ function PostScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  clearAllButton: {
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  clearAllButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  offlineBanner: {
+    backgroundColor: '#FFF3CD',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFEAA7',
+  },
+  offlineText: {
+    color: '#856404',
+    fontSize: 14,
+    textAlign: 'center',
   },
   itcontainer: {
     backgroundColor: '#fff',

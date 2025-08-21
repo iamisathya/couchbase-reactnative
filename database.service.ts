@@ -331,6 +331,67 @@ export class DatabaseService {
   }
 
   /**
+   * Delete all posts from the database
+   */
+  public async deleteAllPosts(): Promise<number> {
+    try {
+      let postCollection;
+      
+      try {
+        // Try to get the post collection from inventory scope
+        postCollection = await this.database?.collection('post', 'inventory');
+      } catch (error) {
+        console.log('⚠️ Post collection not found in inventory scope, using default collection');
+        // Fallback to default collection
+        postCollection = await this.database?.defaultCollection();
+      }
+      
+      if (!postCollection) throw new Error('No collection available for deleting posts');
+
+      // Query to find all post documents
+      let queryStr;
+      let deletedCount = 0;
+      
+      try {
+        queryStr = `SELECT meta().id as docId FROM inventory.post`;
+        const result = await this.database?.createQuery(queryStr).execute();
+        if (result && result.length > 0) {
+          for (const item of result) {
+            try {
+              await this.deletePost(item.docId);
+              deletedCount++;
+            } catch (error) {
+              console.error(`Failed to delete post ${item.docId}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ inventory.post collection not found, querying from default collection');
+        
+        // Fallback to default collection
+        queryStr = `SELECT meta().id as docId FROM _default._default WHERE type = 'post'`;
+        const result = await this.database?.createQuery(queryStr).execute();
+        if (result && result.length > 0) {
+          for (const item of result) {
+            try {
+              await this.deletePost(item.docId);
+              deletedCount++;
+            } catch (error) {
+              console.error(`Failed to delete post ${item.docId}:`, error);
+            }
+          }
+        }
+      }
+      
+      console.log(`✅ Deleted ${deletedCount} posts from local database`);
+      return deletedCount;
+    } catch (error) {
+      console.error('❌ Failed to delete all posts:', error);
+      throw error;
+    }
+  }
+
+  /**
    * returns an array of ResultSet objects for the locations that match the search terms of searchName, searchLocation, and activityType in the inventory.location collection
    * @param searchName - string value to search in the name or title fields
    * @param searchLocation - string value to search in the address, city, state, or country fields

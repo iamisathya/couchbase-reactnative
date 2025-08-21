@@ -31,7 +31,8 @@ function HomeScreen() {
     syncToCloud, 
     manualSync,
     forceSyncDeletions,
-    fetchAndSyncToCapella
+    fetchAndSyncToCapella,
+    clearAllPosts
   } = useSync();
 
   const onPressFetch = () => {
@@ -163,6 +164,37 @@ function HomeScreen() {
     }
   };
 
+  const onPressClearAllPosts = async () => {
+    Alert.alert(
+      'Clear All Posts',
+      'Are you sure you want to delete all posts from device and cloud? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const deletedCount = await clearAllPosts();
+              Snackbar.show({
+                text: `Cleared ${deletedCount} posts from device and cloud`,
+                duration: Snackbar.LENGTH_LONG,
+              });
+            } catch (error) {
+              Snackbar.show({
+                text: 'Failed to clear all posts',
+                duration: Snackbar.LENGTH_LONG,
+              });
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.container}>
@@ -273,6 +305,18 @@ function HomeScreen() {
             {syncStatus.isSyncing ? 'Syncing...' : 'Force Sync Deletions'}
           </Text>
         </TouchableOpacity>
+        
+        <View style={styles.spacer} />
+        
+        <TouchableOpacity 
+          style={[styles.button, styles.clearAllButton]} 
+          onPress={onPressClearAllPosts}
+          disabled={syncStatus.isSyncing}
+        >
+          <Text style={styles.buttonText}>
+            {syncStatus.isSyncing ? 'Clearing...' : 'Clear All Posts'}
+          </Text>
+        </TouchableOpacity>
       </SafeAreaView>
     </View>
   );
@@ -325,6 +369,9 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     backgroundColor: '#FF3B30',
+  },
+  clearAllButton: {
+    backgroundColor: '#8E44AD',
   },
   buttonText: {
     fontSize: 16,
