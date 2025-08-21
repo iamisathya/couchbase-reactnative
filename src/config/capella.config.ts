@@ -10,16 +10,16 @@
 export const CAPELLA_CONFIG = {
   // Your Capella App Service endpoint URL
   // Format: wss://your-app-service.apps.cloud.couchbase.com:4984/your-database
-  SYNC_GATEWAY_URL: 'wss://xxxxxx.apps.cloud.couchbase.com:4984/travel-location',
+  SYNC_GATEWAY_URL: 'wss://ucledcbvi7byidag.apps.cloud.couchbase.com:4984/sathya-couchbase',
   
   // Database name (should match your Capella database name)
-  DATABASE_NAME: 'travel',
+  DATABASE_NAME: 'dryrun',
   
   // Authentication credentials
   // Create these users in your Capella App Service configuration
   AUTH: {
-    username: 'demo@example.com',
-    password: 'P@ssw0rd12',
+    username: 'admin',
+    password: '1@Password',
   },
   
   // Sync configuration
