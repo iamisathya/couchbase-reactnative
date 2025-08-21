@@ -76,15 +76,15 @@ class SyncService {
   }
 
   /**
-   * Fetch posts from JSONPlaceholder API and sync to local database
+   * Fetch posts from JSONPlaceholder API and save to local database
    */
-  public async syncFromCloud(): Promise<void> {
+  public async fetchFromJSONPlaceholder(): Promise<void> {
     if (!this.dbService) {
       throw new Error('Database service not initialized');
     }
 
     if (!NetworkService.isOnline()) {
-      console.log('Network offline, skipping cloud sync');
+      console.log('Network offline, skipping JSONPlaceholder fetch');
       return;
     }
 
@@ -95,7 +95,7 @@ class SyncService {
 
     try {
       this.updateSyncStatus({ isSyncing: true, error: null });
-      console.log('🔄 Starting cloud sync...');
+      console.log('🔄 Fetching posts from JSONPlaceholder...');
 
       // Fetch multiple posts from JSONPlaceholder
       const posts = await this.fetchPostsFromAPI();
@@ -122,9 +122,51 @@ class SyncService {
         error: null,
       });
 
-      console.log(`✅ Cloud sync completed. Saved ${savedCount} posts.`);
+      console.log(`✅ JSONPlaceholder fetch completed. Saved ${savedCount} posts.`);
     } catch (error) {
-      console.error('❌ Cloud sync failed:', error);
+      console.error('❌ JSONPlaceholder fetch failed:', error);
+      this.updateSyncStatus({
+        isSyncing: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Sync data from Capella cloud database to local database
+   */
+  public async syncFromCapella(): Promise<void> {
+    if (!this.dbService) {
+      throw new Error('Database service not initialized');
+    }
+
+    if (!NetworkService.isOnline()) {
+      console.log('Network offline, skipping Capella sync');
+      return;
+    }
+
+    if (this.syncStatus.isSyncing) {
+      console.log('Sync already in progress, skipping');
+      return;
+    }
+
+    try {
+      this.updateSyncStatus({ isSyncing: true, error: null });
+      console.log('🔄 Syncing from Capella cloud...');
+
+      // Trigger Couchbase replicator to pull from cloud
+      await this.dbService.triggerSync();
+
+      this.updateSyncStatus({
+        isSyncing: false,
+        lastSyncTime: new Date(),
+        error: null,
+      });
+
+      console.log('✅ Capella sync completed.');
+    } catch (error) {
+      console.error('❌ Capella sync failed:', error);
       this.updateSyncStatus({
         isSyncing: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -230,11 +272,11 @@ class SyncService {
   }
 
   /**
-   * Manual sync - fetch from cloud and sync to cloud
+   * Manual sync - sync from Capella and sync to Capella
    */
   public async manualSync(): Promise<void> {
     try {
-      await this.syncFromCloud();
+      await this.syncFromCapella();
       await this.syncToCloud();
     } catch (error) {
       console.error('Manual sync failed:', error);
@@ -252,6 +294,19 @@ class SyncService {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Fetch from JSONPlaceholder and sync to Capella
+   */
+  public async fetchAndSyncToCapella(): Promise<void> {
+    try {
+      await this.fetchFromJSONPlaceholder();
+      await this.syncToCloud();
+    } catch (error) {
+      console.error('Fetch and sync to Capella failed:', error);
+      throw error;
+    }
   }
 
   /**

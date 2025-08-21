@@ -31,11 +31,20 @@ export const useSync = () => {
     };
   }, [dbService]);
 
-  const syncFromCloud = async () => {
+  const fetchFromJSONPlaceholder = async () => {
     try {
-      await SyncService.syncFromCloud();
+      await SyncService.fetchFromJSONPlaceholder();
     } catch (error) {
-      console.error('Sync from cloud failed:', error);
+      console.error('Fetch from JSONPlaceholder failed:', error);
+      throw error;
+    }
+  };
+
+  const syncFromCapella = async () => {
+    try {
+      await SyncService.syncFromCapella();
+    } catch (error) {
+      console.error('Sync from Capella failed:', error);
       throw error;
     }
   };
@@ -76,14 +85,25 @@ export const useSync = () => {
     }
   };
 
+  const fetchAndSyncToCapella = async () => {
+    try {
+      await SyncService.fetchAndSyncToCapella();
+    } catch (error) {
+      console.error('Fetch and sync to Capella failed:', error);
+      throw error;
+    }
+  };
+
   return {
     syncStatus,
     networkStatus,
     isOnline: NetworkService.isOnline(),
-    syncFromCloud,
+    fetchFromJSONPlaceholder,
+    syncFromCapella,
     syncToCloud,
     manualSync,
     waitForNetworkAndSync,
     forceSyncDeletions,
+    fetchAndSyncToCapella,
   };
 };

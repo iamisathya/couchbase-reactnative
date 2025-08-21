@@ -26,10 +26,12 @@ function HomeScreen() {
     syncStatus, 
     networkStatus, 
     isOnline, 
-    syncFromCloud, 
+    fetchFromJSONPlaceholder, 
+    syncFromCapella,
     syncToCloud, 
     manualSync,
-    forceSyncDeletions
+    forceSyncDeletions,
+    fetchAndSyncToCapella
   } = useSync();
 
   const onPressFetch = () => {
@@ -47,16 +49,31 @@ function HomeScreen() {
     }
   };
 
-  const onPressSyncFromCloud = async () => {
+  const onPressFetchFromJSONPlaceholder = async () => {
     try {
-      await syncFromCloud();
+      await fetchFromJSONPlaceholder();
       Snackbar.show({
-        text: 'Synced from cloud successfully',
+        text: 'Fetched posts from JSONPlaceholder',
         duration: Snackbar.LENGTH_SHORT,
       });
     } catch (error) {
       Snackbar.show({
-        text: 'Failed to sync from cloud',
+        text: 'Failed to fetch from JSONPlaceholder',
+        duration: Snackbar.LENGTH_LONG,
+      });
+    }
+  };
+
+  const onPressSyncFromCapella = async () => {
+    try {
+      await syncFromCapella();
+      Snackbar.show({
+        text: 'Synced from Capella successfully',
+        duration: Snackbar.LENGTH_SHORT,
+      });
+    } catch (error) {
+      Snackbar.show({
+        text: 'Failed to sync from Capella',
         duration: Snackbar.LENGTH_LONG,
       });
     }
@@ -87,6 +104,21 @@ function HomeScreen() {
     } catch (error) {
       Snackbar.show({
         text: 'Manual sync failed',
+        duration: Snackbar.LENGTH_LONG,
+      });
+    }
+  };
+
+  const onPressFetchAndSyncToCapella = async () => {
+    try {
+      await fetchAndSyncToCapella();
+      Snackbar.show({
+        text: 'Fetched and synced to Capella',
+        duration: Snackbar.LENGTH_SHORT,
+      });
+    } catch (error) {
+      Snackbar.show({
+        text: 'Failed to fetch and sync to Capella',
         duration: Snackbar.LENGTH_LONG,
       });
     }
@@ -160,14 +192,39 @@ function HomeScreen() {
         
         <View style={styles.spacer} />
         
-        {/* Sync Buttons */}
+        {/* Data Source Buttons */}
         <TouchableOpacity 
-          style={[styles.button, styles.syncButton]} 
-          onPress={onPressSyncFromCloud}
+          style={[styles.button, styles.fetchButton]} 
+          onPress={onPressFetchFromJSONPlaceholder}
           disabled={syncStatus.isSyncing || !isOnline}
         >
           <Text style={styles.buttonText}>
-            {syncStatus.isSyncing ? 'Syncing...' : 'Sync from Cloud'}
+            {syncStatus.isSyncing ? 'Fetching...' : 'Fetch from JSONPlaceholder'}
+          </Text>
+        </TouchableOpacity>
+        
+        <View style={styles.spacer} />
+        
+        <TouchableOpacity 
+          style={[styles.button, styles.fetchButton]} 
+          onPress={onPressFetchAndSyncToCapella}
+          disabled={syncStatus.isSyncing || !isOnline}
+        >
+          <Text style={styles.buttonText}>
+            {syncStatus.isSyncing ? 'Processing...' : 'Fetch & Sync to Capella'}
+          </Text>
+        </TouchableOpacity>
+        
+        <View style={styles.spacer} />
+        
+        {/* Capella Sync Buttons */}
+        <TouchableOpacity 
+          style={[styles.button, styles.syncButton]} 
+          onPress={onPressSyncFromCapella}
+          disabled={syncStatus.isSyncing || !isOnline}
+        >
+          <Text style={styles.buttonText}>
+            {syncStatus.isSyncing ? 'Syncing...' : 'Sync from Capella'}
           </Text>
         </TouchableOpacity>
         
@@ -179,7 +236,7 @@ function HomeScreen() {
           disabled={syncStatus.isSyncing || !isOnline}
         >
           <Text style={styles.buttonText}>
-            {syncStatus.isSyncing ? 'Syncing...' : 'Sync to Cloud'}
+            {syncStatus.isSyncing ? 'Syncing...' : 'Sync to Capella'}
           </Text>
         </TouchableOpacity>
         
@@ -262,6 +319,9 @@ const styles = StyleSheet.create({
   },
   syncButton: {
     backgroundColor: '#007AFF',
+  },
+  fetchButton: {
+    backgroundColor: '#34C759',
   },
   deleteButton: {
     backgroundColor: '#FF3B30',
