@@ -490,7 +490,24 @@ export class DatabaseService {
         console.log(`Sync Status: ${change.status.activity}, Progress: ${change.status.progress.completed}/${change.status.progress.total}`);
         
         if (change.status.error) {
-          console.error('Sync Error:', change.status.error);
+          console.error('❌ Sync Error:', change.status.error);
+          console.error('Error Code:', change.status.error.code);
+          console.error('Error Domain:', change.status.error.domain);
+          console.error('Error Message:', change.status.error.message);
+          
+          // Provide specific guidance for common errors
+          if (change.status.error.message?.includes('Unauthorized')) {
+            console.error('🔐 Authentication Error: Check your username/password in src/config/capella.config.ts');
+            console.error('   Make sure the user exists in your Capella App Service');
+          } else if (change.status.error.message?.includes('Connection refused')) {
+            console.error('🌐 Connection Error: Check your App Service URL in src/config/capella.config.ts');
+            console.error('   Verify the App Service is running and accessible');
+          } else if (change.status.error.message?.includes('Database not found')) {
+            console.error('🗄️ Database Error: Check your database name in the URL');
+            console.error('   Ensure the database exists in your Capella cluster');
+          }
+        } else {
+          console.log('✅ Sync Status Updated Successfully');
         }
       });
     } else {

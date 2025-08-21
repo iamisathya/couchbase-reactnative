@@ -63,11 +63,27 @@ export const getCapellaConfig = () => {
 export const validateCapellaConfig = () => {
   const config = getCapellaConfig();
   
+  console.log('🔍 Validating Capella Configuration...');
+  console.log('URL:', config.SYNC_GATEWAY_URL);
+  console.log('Username:', config.AUTH.username);
+  console.log('Database:', config.DATABASE_NAME);
+  
   if (config.SYNC_GATEWAY_URL.includes('xxxxxx')) {
     throw new Error(
-      'Capella configuration not set up. Please update src/config/capella.config.ts with your actual Capella credentials.'
+      '❌ Capella configuration not set up. Please update src/config/capella.config.ts with your actual Capella credentials.'
     );
   }
   
+  if (config.SYNC_GATEWAY_URL === 'wss://xxxxxx.apps.cloud.couchbase.com:4984/travel-location') {
+    throw new Error(
+      '❌ Please replace the placeholder URL with your actual Capella App Service URL'
+    );
+  }
+  
+  if (config.AUTH.username === 'demo@example.com' && config.AUTH.password === 'P@ssw0rd12') {
+    console.warn('⚠️ Using default credentials. Consider updating with your actual Capella user credentials.');
+  }
+  
+  console.log('✅ Capella configuration validated');
   return config;
 };
