@@ -70,7 +70,66 @@ export class DatabaseService {
    */
   public async triggerSync(): Promise<void> {
     if (this.replicator) {
+      console.log('🔄 Triggering manual sync...');
       await this.replicator.start(true);
+      
+      // Wait for sync to complete
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Sync timeout'));
+        }, 30000); // 30 second timeout
+        
+        const checkStatus = () => {
+          if (this.syncStatus?.activity === ReplicatorActivityLevel.IDLE) {
+            clearTimeout(timeout);
+            console.log('✅ Manual sync completed');
+            resolve();
+          } else if (this.syncStatus?.error) {
+            clearTimeout(timeout);
+            reject(new Error(`Sync failed: ${this.syncStatus.error.message}`));
+          } else {
+            setTimeout(checkStatus, 500); // Check every 500ms
+          }
+        };
+        
+        checkStatus();
+      });
+    }
+  }
+
+  /**
+   * Force sync deletions to cloud
+   */
+  public async forceSyncDeletions(): Promise<void> {
+    console.log('🗑️ Force syncing deletions to cloud...');
+    
+    // Trigger a full sync to ensure deletions are replicated
+    if (this.replicator) {
+      await this.replicator.stop();
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for stop
+      await this.replicator.start(true);
+      
+      // Wait for sync to complete
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Deletion sync timeout'));
+        }, 30000);
+        
+        const checkStatus = () => {
+          if (this.syncStatus?.activity === ReplicatorActivityLevel.IDLE) {
+            clearTimeout(timeout);
+            console.log('✅ Deletion sync completed');
+            resolve();
+          } else if (this.syncStatus?.error) {
+            clearTimeout(timeout);
+            reject(new Error(`Deletion sync failed: ${this.syncStatus.error.message}`));
+          } else {
+            setTimeout(checkStatus, 500);
+          }
+        };
+        
+        checkStatus();
+      });
     }
   }
 
@@ -197,12 +256,76 @@ export class DatabaseService {
   /**
    * returns all hotels in the inventory.hotel collection
    */
-  public async deletePosts(id: string) {
+  public async deletePost(docId: string) {
     try {
-      const queryStr = `DELETE FROM inventory.post WHERE post.id = ${id}`;
-      return this.database?.createQuery(queryStr).execute();
+      let postCollection;
+      
+      try {
+        // Try to get the post collection from inventory scope
+        postCollection = await this.database?.collection('post', 'inventory');
+      } catch (error) {
+        console.log('⚠️ Post collection not found in inventory scope, using default collection');
+        // Fallback to default collection
+        postCollection = await this.database?.defaultCollection();
+      }
+      
+      if (!postCollection) throw new Error('No collection available for deleting posts');
+
+      // Get the document first
+      const existingDoc = await postCollection.getDocument(docId);
+      if (!existingDoc) {
+        throw new Error(`Document with ID ${docId} not found`);
+      }
+
+      // Delete the document (this creates a tombstone for sync)
+      await postCollection.deleteDocument(existingDoc);
+      console.log(`✅ Post document ${docId} deleted successfully.`);
+      return true;
     } catch (error) {
-      console.debug(`Error: ${error}`);
+      console.error(`❌ Failed to delete post ${docId}:`, error);
+      throw error;
+    }
+  }
+
+  public async deletePostById(postId: string) {
+    try {
+      let postCollection;
+      
+      try {
+        // Try to get the post collection from inventory scope
+        postCollection = await this.database?.collection('post', 'inventory');
+      } catch (error) {
+        console.log('⚠️ Post collection not found in inventory scope, using default collection');
+        // Fallback to default collection
+        postCollection = await this.database?.defaultCollection();
+      }
+      
+      if (!postCollection) throw new Error('No collection available for deleting posts');
+
+      // Query to find the document by post ID
+      let queryStr;
+      try {
+        queryStr = `SELECT meta().id as docId FROM inventory.post WHERE post.id = '${postId}'`;
+        const result = await this.database?.createQuery(queryStr).execute();
+        if (result && result.length > 0) {
+          const docId = result[0].docId;
+          return await this.deletePost(docId);
+        }
+      } catch (error) {
+        console.log('⚠️ inventory.post collection not found, querying from default collection');
+        
+        // Fallback to default collection
+        queryStr = `SELECT meta().id as docId FROM _default._default WHERE type = 'post' AND id = '${postId}'`;
+        const result = await this.database?.createQuery(queryStr).execute();
+        if (result && result.length > 0) {
+          const docId = result[0].docId;
+          return await this.deletePost(docId);
+        }
+      }
+      
+      throw new Error(`Post with ID ${postId} not found`);
+    } catch (error) {
+      console.error(`❌ Failed to delete post by ID ${postId}:`, error);
       throw error;
     }
   }

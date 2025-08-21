@@ -28,7 +28,8 @@ function HomeScreen() {
     isOnline, 
     syncFromCloud, 
     syncToCloud, 
-    manualSync 
+    manualSync,
+    forceSyncDeletions
   } = useSync();
 
   const onPressFetch = () => {
@@ -86,6 +87,45 @@ function HomeScreen() {
     } catch (error) {
       Snackbar.show({
         text: 'Manual sync failed',
+        duration: Snackbar.LENGTH_LONG,
+      });
+    }
+  };
+
+  const onPressForceSyncDeletions = async () => {
+    try {
+      await forceSyncDeletions();
+      Snackbar.show({
+        text: 'Deletions synced to cloud',
+        duration: Snackbar.LENGTH_SHORT,
+      });
+    } catch (error) {
+      Snackbar.show({
+        text: 'Failed to sync deletions',
+        duration: Snackbar.LENGTH_LONG,
+      });
+    }
+  };
+
+  const onPressDeletePost = async () => {
+    if (!post?.id) {
+      Snackbar.show({
+        text: 'No post to delete',
+        duration: Snackbar.LENGTH_SHORT,
+      });
+      return;
+    }
+
+    try {
+      await dbService.deletePostById(post.id.toString());
+      Snackbar.show({
+        text: 'Post deleted locally',
+        duration: Snackbar.LENGTH_SHORT,
+      });
+      refetch(); // Get a new post
+    } catch (error) {
+      Snackbar.show({
+        text: 'Failed to delete post',
         duration: Snackbar.LENGTH_LONG,
       });
     }
@@ -154,6 +194,28 @@ function HomeScreen() {
             {syncStatus.isSyncing ? 'Syncing...' : 'Manual Sync'}
           </Text>
         </TouchableOpacity>
+        
+        <View style={styles.spacer} />
+        
+        {/* Deletion Controls */}
+        <TouchableOpacity 
+          style={[styles.button, styles.deleteButton]} 
+          onPress={onPressDeletePost}
+        >
+          <Text style={styles.buttonText}>Delete Current Post</Text>
+        </TouchableOpacity>
+        
+        <View style={styles.spacer} />
+        
+        <TouchableOpacity 
+          style={[styles.button, styles.deleteButton]} 
+          onPress={onPressForceSyncDeletions}
+          disabled={syncStatus.isSyncing || !isOnline}
+        >
+          <Text style={styles.buttonText}>
+            {syncStatus.isSyncing ? 'Syncing...' : 'Force Sync Deletions'}
+          </Text>
+        </TouchableOpacity>
       </SafeAreaView>
     </View>
   );
@@ -200,6 +262,9 @@ const styles = StyleSheet.create({
   },
   syncButton: {
     backgroundColor: '#007AFF',
+  },
+  deleteButton: {
+    backgroundColor: '#FF3B30',
   },
   buttonText: {
     fontSize: 16,

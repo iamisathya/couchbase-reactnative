@@ -67,6 +67,15 @@ export const useSync = () => {
     }
   };
 
+  const forceSyncDeletions = async () => {
+    try {
+      await SyncService.forceSyncDeletions();
+    } catch (error) {
+      console.error('Force sync deletions failed:', error);
+      throw error;
+    }
+  };
+
   return {
     syncStatus,
     networkStatus,
@@ -75,5 +84,6 @@ export const useSync = () => {
     syncToCloud,
     manualSync,
     waitForNetworkAndSync,
+    forceSyncDeletions,
   };
 };

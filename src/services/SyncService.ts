@@ -193,6 +193,43 @@ class SyncService {
   }
 
   /**
+   * Force sync deletions to cloud
+   */
+  public async forceSyncDeletions(): Promise<void> {
+    if (!this.dbService) {
+      throw new Error('Database service not initialized');
+    }
+
+    if (!NetworkService.isOnline()) {
+      console.log('Network offline, cannot sync deletions');
+      return;
+    }
+
+    try {
+      this.updateSyncStatus({ isSyncing: true, error: null });
+      console.log('🗑️ Force syncing deletions to cloud...');
+
+      // Force sync deletions
+      await this.dbService.forceSyncDeletions();
+
+      this.updateSyncStatus({
+        isSyncing: false,
+        lastSyncTime: new Date(),
+        error: null,
+      });
+
+      console.log('✅ Deletions synced to cloud.');
+    } catch (error) {
+      console.error('❌ Failed to sync deletions to cloud:', error);
+      this.updateSyncStatus({
+        isSyncing: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Manual sync - fetch from cloud and sync to cloud
    */
   public async manualSync(): Promise<void> {
