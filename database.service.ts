@@ -14,7 +14,10 @@ import {
   ReplicatorConfiguration,
   URLEndpoint,
   ValueIndexItem,
+  ReplicatorStatus,
+  ReplicatorActivityLevel,
 } from 'cbl-reactnative';
+import { getCapellaConfig, validateCapellaConfig } from './src/config/capella.config';
 
 /**
  * Service class for managing the database and its replication.
@@ -24,11 +27,60 @@ export class DatabaseService {
   private replicator: Replicator | undefined;
   private engine: CblReactNativeEngine | undefined;
   private postCollection: Collection | null = null;
+  private syncStatus: ReplicatorStatus | null = null;
+  private isOnline: boolean = false;
+  private syncListeners: Array<(status: ReplicatorStatus) => void> = [];
 
   constructor() {
     //must create a new engine to use the SDK in a React Native environment
     //this must only be done once for the entire app.  This will be implemented as singleton, so it's Ok here.
     this.engine = new CblReactNativeEngine();
+  }
+
+  /**
+   * Add a listener for sync status changes
+   */
+  public addSyncListener(listener: (status: ReplicatorStatus) => void) {
+    this.syncListeners.push(listener);
+  }
+
+  /**
+   * Remove a sync status listener
+   */
+  public removeSyncListener(listener: (status: ReplicatorStatus) => void) {
+    this.syncListeners = this.syncListeners.filter(l => l !== listener);
+  }
+
+  /**
+   * Get current sync status
+   */
+  public getSyncStatus(): ReplicatorStatus | null {
+    return this.syncStatus;
+  }
+
+  /**
+   * Check if the app is currently online and syncing
+   */
+  public isOnlineAndSyncing(): boolean {
+    return this.isOnline && this.syncStatus?.activity === ReplicatorActivityLevel.IDLE;
+  }
+
+  /**
+   * Manually trigger a sync
+   */
+  public async triggerSync(): Promise<void> {
+    if (this.replicator) {
+      await this.replicator.start(true);
+    }
+  }
+
+  /**
+   * Stop the replicator
+   */
+  public async stopSync(): Promise<void> {
+    if (this.replicator) {
+      await this.replicator.stop();
+    }
   }
 
   /**
@@ -174,6 +226,10 @@ export class DatabaseService {
    */
   public async initializeDatabase() {
     try {
+      // Validate Capella configuration
+      const config = validateCapellaConfig();
+      console.log('✅ Capella configuration validated');
+      
       //turned on database logging too verbose to see information in IDE
       await Database.setLogLevel(LogDomain.ALL, LogLevel.DEBUG);
       await this.setupDatabase();
@@ -399,24 +455,44 @@ export class DatabaseService {
   private async setupReplicator() {
     const collections = await this.getCollections();
     if (collections.length > 0) {
-      //****************************************************************
-      //YOU MUST CHANGE THIS TO YOUR LOCAL IP ADDRESS OR TO YOUR CAPELLA CONNECTION STRING
-      //****************************************************************
-      const targetUrl = new URLEndpoint(
-        'wss://xxxxxx.apps.cloud.couchbase.com:4984/travel-location',
+      const capellaConfig = getCapellaConfig();
+      
+      const targetUrl = new URLEndpoint(capellaConfig.SYNC_GATEWAY_URL);
+      const auth = new BasicAuthenticator(
+        capellaConfig.AUTH.username,
+        capellaConfig.AUTH.password
       );
-
-      //****************************************************************
-      //YOU MUST CREATE THIS USER IN YOUR SYNC GATEWAY CONFIGURATION OR CAPPELLA APP SERVICE ENDPOINT
-      //****************************************************************
-      const auth = new BasicAuthenticator('demo@example.com', 'P@ssw0rd12');
 
       const config = new ReplicatorConfiguration(targetUrl);
       config.addCollections(collections);
       config.setAuthenticator(auth);
-      config.setContinuous(true);
-      config.setAcceptOnlySelfSignedCerts(false);
+      config.setContinuous(capellaConfig.SYNC.continuous);
+      config.setAcceptOnlySelfSignedCerts(capellaConfig.SYNC.acceptSelfSignedCerts);
+      
+      // Add the post collection to the replicator
+      const postCollection = await this.database?.collection('post', 'inventory');
+      if (postCollection) {
+        config.addCollection(postCollection);
+      }
+      
       this.replicator = await Replicator.create(config);
+      
+      // Set up replicator listener for status updates
+      this.replicator.addChangeListener((change) => {
+        this.syncStatus = change.status;
+        this.isOnline = change.status.activity !== ReplicatorActivityLevel.OFFLINE;
+        
+        // Notify all listeners
+        this.syncListeners.forEach(listener => {
+          listener(change.status);
+        });
+        
+        console.log(`Sync Status: ${change.status.activity}, Progress: ${change.status.progress.completed}/${change.status.progress.total}`);
+        
+        if (change.status.error) {
+          console.error('Sync Error:', change.status.error);
+        }
+      });
     } else {
       throw new Error('No collections found to set replicator to');
     }
