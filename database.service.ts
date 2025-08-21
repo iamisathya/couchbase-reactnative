@@ -95,30 +95,47 @@ export class DatabaseService {
   /**
    * Retrieves the collections from the database.
    *
-   * This function fetches the `hotel` and `landmark` collections from the
-   *`inventory` scope of the database. If the collections are found, they
-   * are added to an array and returned.
+   * This function fetches the default collection and any other available collections.
+   * If no specific collections exist, it will use the default collection.
    *
    * @returns {Promise<Collection[]>} A promise that resolves to an array of `Collection` objects.
    * @throws Will throw an error if the database is not initialized.
    */
   private async getCollections(): Promise<Collection[]> {
     const collections: Collection[] = [];
-    const hotelCollection = await this.database?.collection(
-      'hotel',
-      'inventory',
-    );
-    const landmarkCollection = await this.database?.collection(
-      'landmark',
-      'inventory',
-    );
-    if (hotelCollection !== undefined) {
-      collections.push(hotelCollection);
+    
+    try {
+      // First, try to get the default collection
+      const defaultCollection = await this.database?.defaultCollection();
+      if (defaultCollection) {
+        collections.push(defaultCollection);
+        console.log('✅ Using default collection for sync');
+      }
+      
+      // Try to get other collections if they exist
+      const allCollections = await this.database?.collections();
+      if (allCollections && allCollections.length > 0) {
+        console.log(`Found ${allCollections.length} collections:`, allCollections.map(c => c.name));
+        
+        // Add all available collections
+        for (const collection of allCollections) {
+          if (!collections.find(c => c.name === collection.name)) {
+            collections.push(collection);
+          }
+        }
+      }
+      
+      console.log(`📦 Total collections for sync: ${collections.length}`);
+      return collections;
+    } catch (error) {
+      console.error('Error getting collections:', error);
+      // Fallback to default collection
+      const defaultCollection = await this.database?.defaultCollection();
+      if (defaultCollection) {
+        return [defaultCollection];
+      }
+      throw new Error('No collections available for sync');
     }
-    if (landmarkCollection !== undefined) {
-      collections.push(landmarkCollection);
-    }
-    return collections;
   }
 
   /**
@@ -148,13 +165,29 @@ export class DatabaseService {
    */
   public async getPosts() {
     try {
-      const queryStr = `
+      // Try to query from inventory.post first
+      let queryStr = `
         SELECT 
           post.*, 
           meta().id AS docId 
         FROM inventory.post AS post
       `;
-      return this.database?.createQuery(queryStr).execute();
+      
+      try {
+        return await this.database?.createQuery(queryStr).execute();
+      } catch (error) {
+        console.log('⚠️ inventory.post collection not found, querying from default collection');
+        
+        // Fallback to default collection
+        queryStr = `
+          SELECT 
+            doc.*, 
+            meta().id AS docId 
+          FROM _default._default AS doc
+          WHERE doc.type = 'post'
+        `;
+        return await this.database?.createQuery(queryStr).execute();
+      }
     } catch (error) {
       console.debug(`Error: ${error}`);
       throw error;
@@ -254,9 +287,19 @@ export class DatabaseService {
 
   async getPostCollection() {
     if (!this.database) throw new Error('Database not initialized');
-    const collection = await this.database.collection('post', 'inventory');
-    this.postCollection = collection;
-    return collection;
+    
+    try {
+      // Try to get the post collection from inventory scope
+      const collection = await this.database.collection('post', 'inventory');
+      this.postCollection = collection;
+      return collection;
+    } catch (error) {
+      console.log('⚠️ Post collection not found in inventory scope, using default collection');
+      // Fallback to default collection
+      const defaultCollection = await this.database.defaultCollection();
+      this.postCollection = defaultCollection;
+      return defaultCollection;
+    }
   }
 
   /**
@@ -285,16 +328,24 @@ export class DatabaseService {
 
       await this.database.open();
       const collections = await this.database.collections();
-      //check to see if we are missing the travel sample collections, if so then create them
-      if (collections.length === 1) {
-        await this.database.createCollection('airline', 'inventory');
-        await this.database.createCollection('airport', 'inventory');
-        await this.database.createCollection('hotel', 'inventory');
-        await this.database.createCollection('post', 'inventory');
-        await this.database.createCollection('landmark', 'inventory');
-        await this.database.createCollection('route', 'inventory');
-        await this.database.createCollection('users', 'tenant_agent_00');
-        await this.database.createCollection('bookings', 'tenant_agent_00');
+      console.log(`📊 Database opened. Found ${collections.length} collections:`, collections.map(c => c.name));
+      
+      // Only create collections if they don't exist and if we're in development mode
+      if (collections.length === 1 && __DEV__) {
+        console.log('🔧 Development mode: Creating sample collections...');
+        try {
+          await this.database.createCollection('airline', 'inventory');
+          await this.database.createCollection('airport', 'inventory');
+          await this.database.createCollection('hotel', 'inventory');
+          await this.database.createCollection('post', 'inventory');
+          await this.database.createCollection('landmark', 'inventory');
+          await this.database.createCollection('route', 'inventory');
+          await this.database.createCollection('users', 'tenant_agent_00');
+          await this.database.createCollection('bookings', 'tenant_agent_00');
+          console.log('✅ Sample collections created');
+        } catch (error) {
+          console.log('⚠️ Could not create sample collections (this is normal for production):', error);
+        }
       }
     } catch (error) {
       console.error('❌ Failed to setup database hotel:', error);
@@ -469,11 +520,7 @@ export class DatabaseService {
       config.setContinuous(capellaConfig.SYNC.continuous);
       config.setAcceptOnlySelfSignedCerts(capellaConfig.SYNC.acceptSelfSignedCerts);
       
-      // Add the post collection to the replicator
-      const postCollection = await this.database?.collection('post', 'inventory');
-      if (postCollection) {
-        config.addCollection(postCollection);
-      }
+      console.log(`🔄 Setting up replicator with ${collections.length} collections:`, collections.map(c => c.name));
       
       this.replicator = await Replicator.create(config);
       
@@ -505,6 +552,10 @@ export class DatabaseService {
           } else if (change.status.error.message?.includes('Database not found')) {
             console.error('🗄️ Database Error: Check your database name in the URL');
             console.error('   Ensure the database exists in your Capella cluster');
+          } else if (change.status.error.message?.includes('Collection') && change.status.error.message?.includes('not found')) {
+            console.error('📦 Collection Error: Your Capella database only has the default collection');
+            console.error('   The app has been updated to work with your database structure');
+            console.error('   All data will be stored in the default collection');
           }
         } else {
           console.log('✅ Sync Status Updated Successfully');
@@ -588,26 +639,34 @@ export class DatabaseService {
   }
 
 
-  public async savePost(hotelData: {
+  public async savePost(postData: {
     userId: string;
     id: string;
     title: string;
     body: string;
   }) {
     try {
-      const postCollection = await this.database?.collection(
-        'post',
-        'inventory',
-      );
-      if (!postCollection) throw new Error('Post collection not found');
+      let postCollection;
+      
+      try {
+        // Try to get the post collection from inventory scope
+        postCollection = await this.database?.collection('post', 'inventory');
+      } catch (error) {
+        console.log('⚠️ Post collection not found in inventory scope, using default collection');
+        // Fallback to default collection
+        postCollection = await this.database?.defaultCollection();
+      }
+      
+      if (!postCollection) throw new Error('No collection available for saving posts');
 
       const docId = `post_${new Date().getTime()}`;
       const doc = new MutableDocument(docId);
 
-      doc.setString('id', hotelData.id);
-      doc.setString('userdId', hotelData.userId);
-      doc.setString('title', hotelData.title);
-      doc.setString('body', hotelData.body);
+      doc.setString('id', postData.id);
+      doc.setString('userId', postData.userId);
+      doc.setString('title', postData.title);
+      doc.setString('body', postData.body);
+      doc.setString('type', 'post'); // Add type for filtering in default collection
 
       await postCollection.save(doc);
       console.log(`✅ Post document ${docId} saved.`);
@@ -623,8 +682,18 @@ export class DatabaseService {
   body: string;
 }) {
     try {
-      const postCollection = await this.database?.collection('post', 'inventory');
-      if (!postCollection) throw new Error('Post collection not found');
+      let postCollection;
+      
+      try {
+        // Try to get the post collection from inventory scope
+        postCollection = await this.database?.collection('post', 'inventory');
+      } catch (error) {
+        console.log('⚠️ Post collection not found in inventory scope, using default collection');
+        // Fallback to default collection
+        postCollection = await this.database?.defaultCollection();
+      }
+      
+      if (!postCollection) throw new Error('No collection available for updating posts');
 
       const existingDoc = await postCollection.getDocument(docId);
       if (!existingDoc) {

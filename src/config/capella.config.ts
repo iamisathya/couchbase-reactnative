@@ -26,8 +26,8 @@ export const CAPELLA_CONFIG = {
   SYNC: {
     continuous: true,
     acceptSelfSignedCerts: false,
-    // Collections to sync
-    collections: ['hotel', 'landmark', 'post', 'airline', 'airport', 'route'],
+    // Collections to sync (will use default collection if others don't exist)
+    collections: ['_default'],
   },
   
   // Network configuration
