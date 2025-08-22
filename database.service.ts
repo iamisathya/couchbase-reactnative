@@ -237,8 +237,25 @@ export class DatabaseService {
   public async triggerSimpleSync(): Promise<void> {
     if (this.replicator) {
       console.log('🔄 Triggering simple sync (no wait)...');
+      
+      // Get status before starting
+      const beforeStatus = this.replicator.status;
+      console.log('📊 Status before starting:', {
+        activity: beforeStatus?.activity || 'undefined',
+        error: beforeStatus?.error?.message || 'No error'
+      });
+      
       await this.replicator.start(true);
       console.log('✅ Simple sync triggered successfully');
+      
+      // Get status after starting
+      setTimeout(() => {
+        const afterStatus = this.replicator.status;
+        console.log('📊 Status after starting:', {
+          activity: afterStatus?.activity || 'undefined',
+          error: afterStatus?.error?.message || 'No error'
+        });
+      }, 1000);
     } else {
       throw new Error('Replicator not initialized');
     }
@@ -263,6 +280,14 @@ export class DatabaseService {
         error: status?.error?.message || 'No error',
         progress: status?.progress ? `${status.progress.completed}/${status.progress.total}` : '0/0'
       });
+
+      // Check if replicator is already running
+      if (status?.activity === ReplicatorActivityLevel.IDLE || 
+          status?.activity === ReplicatorActivityLevel.BUSY ||
+          status?.activity === ReplicatorActivityLevel.CONNECTING) {
+        console.log('✅ Replicator is already running');
+        return true;
+      }
 
       // Try to start the replicator
       await this.replicator.start(true);
@@ -290,6 +315,18 @@ export class DatabaseService {
       console.error('❌ Replicator connection test failed:', error);
       return false;
     }
+  }
+
+  /**
+   * Check if replicator is properly initialized
+   */
+  public isReplicatorInitialized(): boolean {
+    const isInitialized = !!this.replicator;
+    console.log('🔍 Replicator initialization check:', {
+      hasReplicator: isInitialized,
+      hasStatus: !!this.syncStatus
+    });
+    return isInitialized;
   }
 
   /**
@@ -887,29 +924,59 @@ export class DatabaseService {
         collections: collections.map(c => c.name)
       });
       
-      const targetUrl = new URLEndpoint(capellaConfig.SYNC_GATEWAY_URL);
-      const auth = new BasicAuthenticator(
-        capellaConfig.AUTH.username,
-        capellaConfig.AUTH.password
-      );
+      try {
+        const targetUrl = new URLEndpoint(capellaConfig.SYNC_GATEWAY_URL);
+        const auth = new BasicAuthenticator(
+          capellaConfig.AUTH.username,
+          capellaConfig.AUTH.password
+        );
 
-      const config = new ReplicatorConfiguration(targetUrl);
-      config.addCollections(collections);
-      config.setAuthenticator(auth);
-      config.setContinuous(capellaConfig.SYNC.continuous);
-      config.setAcceptOnlySelfSignedCerts(capellaConfig.SYNC.acceptSelfSignedCerts);
-      
-      // Add additional configuration for better connection handling
-      config.setHeartbeat(60); // 60 second heartbeat
-      config.setMaxAttempts(5); // 5 retry attempts
-      config.setMaxAttemptWaitTime(300); // 5 minutes max wait time
-      
-      console.log(`🔄 Setting up replicator with ${collections.length} collections:`, collections.map(c => c.name));
-      
-      this.replicator = await Replicator.create(config);
+        const config = new ReplicatorConfiguration(targetUrl);
+        config.addCollections(collections);
+        config.setAuthenticator(auth);
+        config.setContinuous(capellaConfig.SYNC.continuous);
+        config.setAcceptOnlySelfSignedCerts(capellaConfig.SYNC.acceptSelfSignedCerts);
+        
+        // Add additional configuration for better connection handling
+        config.setHeartbeat(60); // 60 second heartbeat
+        config.setMaxAttempts(5); // 5 retry attempts
+        config.setMaxAttemptWaitTime(300); // 5 minutes max wait time
+        
+        console.log(`🔄 Setting up replicator with ${collections.length} collections:`, collections.map(c => c.name));
+        
+        this.replicator = await Replicator.create(config);
+        
+        // Verify replicator was created successfully
+        if (!this.replicator) {
+          throw new Error('Failed to create replicator - replicator is null');
+        }
+        
+        console.log('✅ Replicator created successfully');
+        
+        // Get initial status
+        const initialStatus = this.replicator.status;
+        console.log('📊 Initial replicator status:', {
+          activity: initialStatus?.activity || 'undefined',
+          error: initialStatus?.error?.message || 'No error',
+          progress: initialStatus?.progress ? `${initialStatus.progress.completed}/${initialStatus.progress.total}` : '0/0'
+        });
+        
+        // Set initial sync status
+        this.syncStatus = initialStatus;
+        
+      } catch (error) {
+        console.error('❌ Error creating replicator:', error);
+        throw error;
+      }
       
       // Set up replicator listener for status updates
       this.replicator.addChangeListener((change) => {
+        console.log('🔄 Replicator change listener triggered:', {
+          activity: change.status.activity || 'undefined',
+          error: change.status.error?.message || 'No error',
+          progress: change.status.progress ? `${change.status.progress.completed}/${change.status.progress.total}` : '0/0'
+        });
+        
         this.syncStatus = change.status;
         this.isOnline = change.status.activity !== ReplicatorActivityLevel.OFFLINE;
         
