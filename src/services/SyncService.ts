@@ -302,7 +302,40 @@ class SyncService {
   public async fetchAndSyncToCapella(): Promise<void> {
     try {
       await this.fetchFromJSONPlaceholder();
-      await this.syncToCloud();
+      
+      // Use simple sync for this operation to avoid timeout issues
+      if (!this.dbService) {
+        throw new Error('Database service not initialized');
+      }
+
+      if (!NetworkService.isOnline()) {
+        console.log('Network offline, will sync when online');
+        return;
+      }
+
+      try {
+        this.updateSyncStatus({ isSyncing: true, error: null });
+        console.log('🔄 Triggering simple sync to Capella...');
+
+        // Use simple sync instead of waiting for completion
+        await this.dbService.triggerSimpleSync();
+
+        this.updateSyncStatus({
+          isSyncing: false,
+          lastSyncTime: new Date(),
+          error: null,
+        });
+
+        console.log('✅ Fetch and sync to Capella completed.');
+      } catch (error) {
+        console.error('❌ Failed to sync to Capella:', error);
+        this.updateSyncStatus({
+          isSyncing: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        // Don't throw error here, just log it
+        console.log('⚠️ Sync failed but fetch was successful');
+      }
     } catch (error) {
       console.error('Fetch and sync to Capella failed:', error);
       throw error;

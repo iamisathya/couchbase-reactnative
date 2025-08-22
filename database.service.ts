@@ -76,24 +76,41 @@ export class DatabaseService {
       // Wait for sync to complete
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new Error('Sync timeout'));
+          console.log('⏰ Sync timeout reached');
+          reject(new Error('Sync timeout - operation took too long'));
         }, 30000); // 30 second timeout
         
         const checkStatus = () => {
+          console.log('🔍 Checking sync status:', {
+            activity: this.syncStatus?.activity,
+            hasError: !!this.syncStatus?.error,
+            errorMessage: this.syncStatus?.error?.message || 'No error message'
+          });
+          
           if (this.syncStatus?.activity === ReplicatorActivityLevel.IDLE) {
             clearTimeout(timeout);
-            console.log('✅ Manual sync completed');
+            console.log('✅ Manual sync completed successfully');
             resolve();
           } else if (this.syncStatus?.error) {
             clearTimeout(timeout);
-            reject(new Error(`Sync failed: ${this.syncStatus.error.message}`));
+            const errorMessage = this.syncStatus.error.message || 'Unknown sync error';
+            console.error('❌ Sync failed with error:', errorMessage);
+            reject(new Error(`Sync failed: ${errorMessage}`));
+          } else if (this.syncStatus?.activity === ReplicatorActivityLevel.OFFLINE) {
+            clearTimeout(timeout);
+            console.error('❌ Sync failed: Replicator is offline');
+            reject(new Error('Sync failed: Replicator is offline'));
           } else {
-            setTimeout(checkStatus, 500); // Check every 500ms
+            // Continue checking
+            setTimeout(checkStatus, 1000); // Check every 1 second
           }
         };
         
-        checkStatus();
+        // Start checking after a short delay
+        setTimeout(checkStatus, 1000);
       });
+    } else {
+      throw new Error('Replicator not initialized');
     }
   }
 
@@ -105,31 +122,56 @@ export class DatabaseService {
     
     // Trigger a full sync to ensure deletions are replicated
     if (this.replicator) {
-      await this.replicator.stop();
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for stop
-      await this.replicator.start(true);
-      
-      // Wait for sync to complete
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Deletion sync timeout'));
-        }, 30000);
+      try {
+        await this.replicator.stop();
+        console.log('🛑 Replicator stopped');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for stop
         
-        const checkStatus = () => {
-          if (this.syncStatus?.activity === ReplicatorActivityLevel.IDLE) {
-            clearTimeout(timeout);
-            console.log('✅ Deletion sync completed');
-            resolve();
-          } else if (this.syncStatus?.error) {
-            clearTimeout(timeout);
-            reject(new Error(`Deletion sync failed: ${this.syncStatus.error.message}`));
-          } else {
-            setTimeout(checkStatus, 500);
-          }
-        };
+        await this.replicator.start(true);
+        console.log('🔄 Replicator restarted');
         
-        checkStatus();
-      });
+        // Wait for sync to complete
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            console.log('⏰ Deletion sync timeout reached');
+            reject(new Error('Deletion sync timeout - operation took too long'));
+          }, 30000);
+          
+          const checkStatus = () => {
+            console.log('🔍 Checking deletion sync status:', {
+              activity: this.syncStatus?.activity,
+              hasError: !!this.syncStatus?.error,
+              errorMessage: this.syncStatus?.error?.message || 'No error message'
+            });
+            
+            if (this.syncStatus?.activity === ReplicatorActivityLevel.IDLE) {
+              clearTimeout(timeout);
+              console.log('✅ Deletion sync completed successfully');
+              resolve();
+            } else if (this.syncStatus?.error) {
+              clearTimeout(timeout);
+              const errorMessage = this.syncStatus.error.message || 'Unknown deletion sync error';
+              console.error('❌ Deletion sync failed with error:', errorMessage);
+              reject(new Error(`Deletion sync failed: ${errorMessage}`));
+            } else if (this.syncStatus?.activity === ReplicatorActivityLevel.OFFLINE) {
+              clearTimeout(timeout);
+              console.error('❌ Deletion sync failed: Replicator is offline');
+              reject(new Error('Deletion sync failed: Replicator is offline'));
+            } else {
+              // Continue checking
+              setTimeout(checkStatus, 1000); // Check every 1 second
+            }
+          };
+          
+          // Start checking after a short delay
+          setTimeout(checkStatus, 1000);
+        });
+      } catch (error) {
+        console.error('❌ Error during force sync deletions:', error);
+        throw error;
+      }
+    } else {
+      throw new Error('Replicator not initialized');
     }
   }
 
@@ -139,6 +181,19 @@ export class DatabaseService {
   public async stopSync(): Promise<void> {
     if (this.replicator) {
       await this.replicator.stop();
+    }
+  }
+
+  /**
+   * Simple sync trigger without waiting for completion
+   */
+  public async triggerSimpleSync(): Promise<void> {
+    if (this.replicator) {
+      console.log('🔄 Triggering simple sync (no wait)...');
+      await this.replicator.start(true);
+      console.log('✅ Simple sync triggered successfully');
+    } else {
+      throw new Error('Replicator not initialized');
     }
   }
 
@@ -718,13 +773,17 @@ export class DatabaseService {
           listener(change.status);
         });
         
-        console.log(`Sync Status: ${change.status.activity}, Progress: ${change.status.progress.completed}/${change.status.progress.total}`);
+        console.log(`🔄 Sync Status: ${change.status.activity}, Progress: ${change.status.progress.completed}/${change.status.progress.total}`);
         
         if (change.status.error) {
-          console.error('❌ Sync Error:', change.status.error);
-          console.error('Error Code:', change.status.error.code);
-          console.error('Error Domain:', change.status.error.domain);
-          console.error('Error Message:', change.status.error.message);
+          console.error('❌ Sync Error Details:', {
+            error: change.status.error,
+            code: change.status.error.code,
+            domain: change.status.error.domain,
+            message: change.status.error.message,
+            activity: change.status.activity,
+            progress: change.status.progress
+          });
           
           // Provide specific guidance for common errors
           if (change.status.error.message?.includes('Unauthorized')) {
@@ -740,9 +799,17 @@ export class DatabaseService {
             console.error('📦 Collection Error: Your Capella database only has the default collection');
             console.error('   The app has been updated to work with your database structure');
             console.error('   All data will be stored in the default collection');
+          } else {
+            console.error('❓ Unknown Sync Error: Check your Capella configuration and network connection');
           }
-        } else {
-          console.log('✅ Sync Status Updated Successfully');
+        } else if (change.status.activity === ReplicatorActivityLevel.IDLE) {
+          console.log('✅ Sync Status: IDLE - Sync completed successfully');
+        } else if (change.status.activity === ReplicatorActivityLevel.OFFLINE) {
+          console.log('⚠️ Sync Status: OFFLINE - No network connection');
+        } else if (change.status.activity === ReplicatorActivityLevel.CONNECTING) {
+          console.log('🔄 Sync Status: CONNECTING - Establishing connection...');
+        } else if (change.status.activity === ReplicatorActivityLevel.BUSY) {
+          console.log('🔄 Sync Status: BUSY - Syncing data...');
         }
       });
     } else {
