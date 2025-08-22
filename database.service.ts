@@ -119,104 +119,9 @@ export class DatabaseService {
    */
   public async forceSyncDeletions(): Promise<void> {
     if (this.replicator) {
-      try {
-        console.log('🗑️ Force syncing deletions to cloud...');
-        
-        // Check if replicator is already running
-        const currentStatus = this.replicator.status;
-        console.log('🔄 Current replicator status:', {
-          activity: currentStatus?.activity || 'undefined',
-          error: currentStatus?.error?.message || 'No error'
-        });
-        
-        // Stop the replicator if it's running and status is available
-        if (currentStatus && currentStatus.activity !== ReplicatorActivityLevel.STOPPED) {
-          await this.replicator.stop();
-          console.log('🛑 Replicator stopped');
-          
-          // Wait a moment for the stop to complete
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } else {
-          console.log('🔄 Replicator is already stopped or status unavailable');
-        }
-        
-        // Restart the replicator
-        await this.replicator.start(true);
-        console.log('🔄 Replicator restarted');
-        
-        // Wait for sync to complete with better status detection
-        return new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            console.log('⏰ Deletion sync timeout reached');
-            reject(new Error('Deletion sync timeout - operation took too long'));
-          }, 30000);
-          
-          let checkCount = 0;
-          const maxChecks = 30; // Maximum 30 checks (30 seconds)
-          
-          const checkStatus = () => {
-            checkCount++;
-            const status = this.syncStatus;
-            
-            console.log(`🔍 Checking deletion sync status (${checkCount}/${maxChecks}):`, {
-              activity: status?.activity || 'undefined',
-              hasError: !!status?.error,
-              errorMessage: status?.error?.message || 'No error message',
-              progress: status?.progress ? `${status.progress.completed}/${status.progress.total}` : '0/0'
-            });
-            
-            // Check if we have a valid status
-            if (!status || status.activity === undefined) {
-              if (checkCount >= 10) { // Increased to 10 checks to give more time
-                clearTimeout(timeout);
-                console.error('❌ Deletion sync failed: Replicator status is undefined after 10 checks');
-                console.error('🔍 This usually means the replicator is not connecting to Capella');
-                console.error('🔍 Check your network connection and Capella App Service status');
-                console.error('🔍 The deletions have been saved locally and will sync when connection is restored');
-                reject(new Error('Deletion sync failed: Replicator status is undefined - check connection'));
-                return;
-              }
-              // Continue checking if status is still undefined
-              setTimeout(checkStatus, 1000);
-              return;
-            }
-            
-            if (status.activity === ReplicatorActivityLevel.IDLE) {
-              clearTimeout(timeout);
-              console.log('✅ Deletion sync completed successfully');
-              resolve();
-            } else if (status.error) {
-              clearTimeout(timeout);
-              const errorMessage = status.error.message || 'Unknown deletion sync error';
-              console.error('❌ Deletion sync failed with error:', errorMessage);
-              reject(new Error(`Deletion sync failed: ${errorMessage}`));
-            } else if (status.activity === ReplicatorActivityLevel.OFFLINE) {
-              clearTimeout(timeout);
-              console.error('❌ Deletion sync failed: Replicator is offline');
-              console.error('🔍 The deletions have been saved locally and will sync when connection is restored');
-              reject(new Error('Deletion sync failed: Replicator is offline'));
-            } else if (status.activity === ReplicatorActivityLevel.STOPPED) {
-              clearTimeout(timeout);
-              console.error('❌ Deletion sync failed: Replicator stopped unexpectedly');
-              reject(new Error('Deletion sync failed: Replicator stopped unexpectedly'));
-            } else if (checkCount >= maxChecks) {
-              clearTimeout(timeout);
-              console.error('❌ Deletion sync failed: Maximum checks reached');
-              console.error('🔍 The deletions have been saved locally and will sync when connection is restored');
-              reject(new Error('Deletion sync failed: Maximum checks reached - sync may be stuck'));
-            } else {
-              // Continue checking
-              setTimeout(checkStatus, 1000);
-            }
-          };
-          
-          // Start checking after a short delay
-          setTimeout(checkStatus, 1000);
-        });
-      } catch (error) {
-        console.error('❌ Error during force sync deletions:', error);
-        throw error;
-      }
+      console.log('🗑️ Force syncing deletions to cloud...');
+      await this.replicator.start(true);
+      console.log('✅ Force sync deletions completed');
     } else {
       throw new Error('Replicator not initialized');
     }
@@ -237,204 +142,10 @@ export class DatabaseService {
   public async triggerSimpleSync(): Promise<void> {
     if (this.replicator) {
       console.log('🔄 Triggering simple sync (no wait)...');
-      
-      // Get status before starting
-      const beforeStatus = this.replicator.status;
-      console.log('📊 Status before starting:', {
-        activity: beforeStatus?.activity || 'undefined',
-        error: beforeStatus?.error?.message || 'No error'
-      });
-      
       await this.replicator.start(true);
       console.log('✅ Simple sync triggered successfully');
-      
-      // Get status after starting
-      setTimeout(() => {
-        const afterStatus = this.replicator.status;
-        console.log('📊 Status after starting:', {
-          activity: afterStatus?.activity || 'undefined',
-          error: afterStatus?.error?.message || 'No error'
-        });
-      }, 1000);
     } else {
       throw new Error('Replicator not initialized');
-    }
-  }
-
-  /**
-   * Trigger sync for newly saved documents
-   */
-  private async triggerDocumentSync(): Promise<void> {
-    if (!this.replicator) {
-      console.log('⚠️ Replicator not initialized, cannot trigger document sync');
-      return;
-    }
-
-    try {
-      console.log('🔄 Triggering document sync...');
-      
-      // Get current status
-      const status = this.replicator.status;
-      console.log('📊 Current status before document sync:', {
-        activity: status?.activity || 'undefined',
-        error: status?.error?.message || 'No error'
-      });
-      
-      // If replicator is not running, start it
-      if (status?.activity === ReplicatorActivityLevel.STOPPED) {
-        await this.replicator.start(true);
-        console.log('✅ Replicator started for document sync');
-      } else {
-        console.log('✅ Replicator is already running');
-      }
-      
-    } catch (error) {
-      console.error('❌ Failed to trigger document sync:', error);
-    }
-  }
-
-  /**
-   * Test replicator connection
-   */
-  public async testReplicatorConnection(): Promise<boolean> {
-    if (!this.replicator) {
-      console.log('❌ Replicator not initialized');
-      return false;
-    }
-
-    try {
-      console.log('🔍 Testing replicator connection...');
-      
-      // Get current status
-      const status = this.replicator.status;
-      console.log('📊 Current replicator status:', {
-        activity: status?.activity || 'undefined',
-        error: status?.error?.message || 'No error',
-        progress: status?.progress ? `${status.progress.completed}/${status.progress.total}` : '0/0'
-      });
-
-      // Check if replicator is already running
-      if (status?.activity === ReplicatorActivityLevel.IDLE || 
-          status?.activity === ReplicatorActivityLevel.BUSY ||
-          status?.activity === ReplicatorActivityLevel.CONNECTING) {
-        console.log('✅ Replicator is already running');
-        return true;
-      }
-
-      // Try to start the replicator
-      await this.replicator.start(true);
-      console.log('✅ Replicator started successfully');
-
-      // Wait a moment for status to update
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // Check status again
-      const newStatus = this.replicator.status;
-      console.log('📊 Updated replicator status:', {
-        activity: newStatus?.activity || 'undefined',
-        error: newStatus?.error?.message || 'No error',
-        progress: newStatus?.progress ? `${newStatus.progress.completed}/${newStatus.progress.total}` : '0/0'
-      });
-
-      const isConnected = newStatus?.activity === ReplicatorActivityLevel.IDLE || 
-                         newStatus?.activity === ReplicatorActivityLevel.BUSY ||
-                         newStatus?.activity === ReplicatorActivityLevel.CONNECTING;
-
-      console.log(`🔍 Connection test result: ${isConnected ? '✅ Connected' : '❌ Not connected'}`);
-      return isConnected;
-
-    } catch (error) {
-      console.error('❌ Replicator connection test failed:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Check if replicator is properly initialized
-   */
-  public isReplicatorInitialized(): boolean {
-    const isInitialized = !!this.replicator;
-    console.log('🔍 Replicator initialization check:', {
-      hasReplicator: isInitialized,
-      hasStatus: !!this.syncStatus
-    });
-    return isInitialized;
-  }
-
-  /**
-   * Check if replicator is properly connected
-   */
-  public isReplicatorConnected(): boolean {
-    if (!this.replicator) {
-      console.log('🔍 Replicator connection check: No replicator instance');
-      return false;
-    }
-    
-    try {
-      const status = this.replicator.status;
-      
-      // Check if status is available
-      if (!status) {
-        console.log('🔍 Replicator connection check: Status is undefined');
-        return false;
-      }
-      
-      const isConnected = status.activity === ReplicatorActivityLevel.IDLE || 
-                         status.activity === ReplicatorActivityLevel.BUSY ||
-                         status.activity === ReplicatorActivityLevel.CONNECTING;
-      
-      console.log('🔍 Replicator connection check:', {
-        hasReplicator: !!this.replicator,
-        hasStatus: !!status,
-        activity: status.activity || 'undefined',
-        isConnected,
-        error: status.error?.message || 'No error'
-      });
-      
-      return isConnected;
-    } catch (error) {
-      console.error('🔍 Replicator connection check error:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Ensure a collection is being synced by the replicator
-   */
-  private async ensureCollectionSynced(collection: Collection): Promise<void> {
-    if (!this.replicator) {
-      console.log('⚠️ Replicator not initialized, cannot ensure collection sync');
-      return;
-    }
-
-    try {
-      console.log(`🔍 Ensuring collection ${collection.name} is synced...`);
-      
-      // Get current replicator configuration
-      const config = this.replicator.config;
-      const currentCollections = config.collections;
-      
-      // Check if collection is already being synced
-      const isAlreadySynced = currentCollections.some(c => c.name === collection.name);
-      
-      if (!isAlreadySynced) {
-        console.log(`🔄 Adding collection ${collection.name} to replicator...`);
-        
-        // Stop replicator
-        await this.replicator.stop();
-        
-        // Add collection to configuration
-        config.addCollections([collection]);
-        
-        // Restart replicator
-        await this.replicator.start(true);
-        
-        console.log(`✅ Collection ${collection.name} added to replicator`);
-      } else {
-        console.log(`✅ Collection ${collection.name} is already being synced`);
-      }
-    } catch (error) {
-      console.error(`❌ Failed to ensure collection ${collection.name} is synced:`, error);
     }
   }
 
@@ -450,8 +161,9 @@ export class DatabaseService {
   /**
    * Retrieves the collections from the database.
    *
-   * This function fetches the default collection and any other available collections.
-   * If no specific collections exist, it will use the default collection.
+   * This function fetches the `hotel` and `landmark` collections from the
+   *`inventory` scope of the database. If the collections are found, they
+   * are added to an array and returned.
    *
    * @returns {Promise<Collection[]>} A promise that resolves to an array of `Collection` objects.
    * @throws Will throw an error if the database is not initialized.
@@ -459,47 +171,36 @@ export class DatabaseService {
   private async getCollections(): Promise<Collection[]> {
     const collections: Collection[] = [];
     
-    try {
-      // First, try to get the default collection
-      const defaultCollection = await this.database?.defaultCollection();
-      if (defaultCollection) {
-        collections.push(defaultCollection);
-        console.log('✅ Using default collection for sync');
-      }
-      
-      // Try to get other collections if they exist
-      const allCollections = await this.database?.collections();
-      if (allCollections && allCollections.length > 0) {
-        console.log(`Found ${allCollections.length} collections:`, allCollections.map(c => c.name));
-        
-        // Add all available collections
-        for (const collection of allCollections) {
-          if (!collections.find(c => c.name === collection.name)) {
-            collections.push(collection);
-          }
-        }
-      }
-      
-      // Ensure we have at least the default collection for sync
-      if (collections.length === 0) {
-        console.log('⚠️ No collections found, using default collection');
-        const defaultCollection = await this.database?.defaultCollection();
-        if (defaultCollection) {
-          collections.push(defaultCollection);
-        }
-      }
-      
-      console.log(`📦 Total collections for sync: ${collections.length}:`, collections.map(c => c.name));
-      return collections;
-    } catch (error) {
-      console.error('Error getting collections:', error);
-      // Fallback to default collection
-      const defaultCollection = await this.database?.defaultCollection();
-      if (defaultCollection) {
-        return [defaultCollection];
-      }
-      throw new Error('No collections available for sync');
+    // Get default collection for posts
+    const defaultCollection = await this.database?.defaultCollection();
+    if (defaultCollection) {
+      collections.push(defaultCollection);
+      console.log('✅ Using default collection for sync');
     }
+    
+    // Get hotel and landmark collections if they exist
+    try {
+      const hotelCollection = await this.database?.collection('hotel', 'inventory');
+      if (hotelCollection !== undefined) {
+        collections.push(hotelCollection);
+        console.log('✅ Using hotel collection for sync');
+      }
+    } catch (error) {
+      console.log('⚠️ Hotel collection not found');
+    }
+    
+    try {
+      const landmarkCollection = await this.database?.collection('landmark', 'inventory');
+      if (landmarkCollection !== undefined) {
+        collections.push(landmarkCollection);
+        console.log('✅ Using landmark collection for sync');
+      }
+    } catch (error) {
+      console.log('⚠️ Landmark collection not found');
+    }
+    
+    console.log(`📦 Total collections for sync: ${collections.length}:`, collections.map(c => c.name));
+    return collections;
   }
 
   /**
@@ -525,33 +226,18 @@ export class DatabaseService {
   }
 
     /**
-   * returns all hotels in the inventory.hotel collection
+   * returns all posts from the default collection
    */
   public async getPosts() {
     try {
-      // Try to query from inventory.post first
-      let queryStr = `
+      const queryStr = `
         SELECT 
-          post.*, 
+          doc.*, 
           meta().id AS docId 
-        FROM inventory.post AS post
+        FROM _default._default AS doc
+        WHERE doc.type = 'post'
       `;
-      
-      try {
-        return await this.database?.createQuery(queryStr).execute();
-      } catch (error) {
-        console.log('⚠️ inventory.post collection not found, querying from default collection');
-        
-        // Fallback to default collection
-        queryStr = `
-          SELECT 
-            doc.*, 
-            meta().id AS docId 
-          FROM _default._default AS doc
-          WHERE doc.type = 'post'
-        `;
-        return await this.database?.createQuery(queryStr).execute();
-      }
+      return await this.database?.createQuery(queryStr).execute();
     } catch (error) {
       console.debug(`Error: ${error}`);
       throw error;
@@ -559,21 +245,11 @@ export class DatabaseService {
   }
 
   /**
-   * returns all hotels in the inventory.hotel collection
+   * Delete a post from the default collection
    */
   public async deletePost(docId: string) {
     try {
-      let postCollection;
-      
-      try {
-        // Try to get the post collection from inventory scope
-        postCollection = await this.database?.collection('post', 'inventory');
-      } catch (error) {
-        console.log('⚠️ Post collection not found in inventory scope, using default collection');
-        // Fallback to default collection
-        postCollection = await this.database?.defaultCollection();
-      }
-      
+      const postCollection = await this.database?.defaultCollection();
       if (!postCollection) throw new Error('No collection available for deleting posts');
 
       // Get the document first
@@ -636,54 +312,25 @@ export class DatabaseService {
   }
 
   /**
-   * Delete all posts from the database
+   * Delete all posts from the default collection
    */
   public async deleteAllPosts(): Promise<number> {
     try {
-      let postCollection;
-      
-      try {
-        // Try to get the post collection from inventory scope
-        postCollection = await this.database?.collection('post', 'inventory');
-      } catch (error) {
-        console.log('⚠️ Post collection not found in inventory scope, using default collection');
-        // Fallback to default collection
-        postCollection = await this.database?.defaultCollection();
-      }
-      
+      const postCollection = await this.database?.defaultCollection();
       if (!postCollection) throw new Error('No collection available for deleting posts');
 
       // Query to find all post documents
-      let queryStr;
+      const queryStr = `SELECT meta().id as docId FROM _default._default WHERE type = 'post'`;
+      const result = await this.database?.createQuery(queryStr).execute();
       let deletedCount = 0;
       
-      try {
-        queryStr = `SELECT meta().id as docId FROM inventory.post`;
-        const result = await this.database?.createQuery(queryStr).execute();
-        if (result && result.length > 0) {
-          for (const item of result) {
-            try {
-              await this.deletePost(item.docId);
-              deletedCount++;
-            } catch (error) {
-              console.error(`Failed to delete post ${item.docId}:`, error);
-            }
-          }
-        }
-      } catch (error) {
-        console.log('⚠️ inventory.post collection not found, querying from default collection');
-        
-        // Fallback to default collection
-        queryStr = `SELECT meta().id as docId FROM _default._default WHERE type = 'post'`;
-        const result = await this.database?.createQuery(queryStr).execute();
-        if (result && result.length > 0) {
-          for (const item of result) {
-            try {
-              await this.deletePost(item.docId);
-              deletedCount++;
-            } catch (error) {
-              console.error(`Failed to delete post ${item.docId}:`, error);
-            }
+      if (result && result.length > 0) {
+        for (const item of result) {
+          try {
+            await this.deletePost(item.docId);
+            deletedCount++;
+          } catch (error) {
+            console.error(`Failed to delete post ${item.docId}:`, error);
           }
         }
       }
@@ -797,49 +444,39 @@ export class DatabaseService {
    * @throws Will throw an error if the database setup fails.
    */
   private async setupDatabase() {
-    try {
-      /* **
-        * Note about encryption: In a real-world app, the encryption key
-        * should not be hardcoded like it is here.
+    /* **
+    * Note about encryption: In a real-world app, the encryption key
+    * should not be hardcoded like it is here.
 
-        * One strategy is to auto generate a unique encryption key per
-        * user on initial app load, then store it securely in the
-        * device's keychain for later retrieval.
-        * **/
-      const fileSystem = new FileSystem();
-      const directoryPath = await fileSystem.getDefaultPath();
+    * One strategy is to auto generate a unique encryption key per
+    * user on initial app load, then store it securely in the
+    * device's keychain for later retrieval.
+    * **/
+    const fileSystem = new FileSystem();
+    const directoryPath = await fileSystem.getDefaultPath();
 
-      const dc = new DatabaseConfiguration();
-      dc.setDirectory(directoryPath);
-      dc.setEncryptionKey('8e31f8f6-60bd-482a-9c70-69855dd02c39');
+    const dc = new DatabaseConfiguration();
+    dc.setDirectory(directoryPath);
+    dc.setEncryptionKey('8e31f8f6-60bd-482a-9c70-69855dd02c39');
 
-      const capellaConfig = getCapellaConfig();
-      this.database = new Database(capellaConfig.DATABASE_NAME, dc);
+    const capellaConfig = getCapellaConfig();
+    this.database = new Database(capellaConfig.DATABASE_NAME, dc);
 
-      await this.database.open();
-      const collections = await this.database.collections();
-      console.log(`📊 Database opened. Found ${collections.length} collections:`, collections.map(c => c.name));
-      
-      // Only create collections if they don't exist and if we're in development mode
-      if (collections.length === 1 && __DEV__) {
-        console.log('🔧 Development mode: Creating sample collections...');
-        try {
-          await this.database.createCollection('airline', 'inventory');
-          await this.database.createCollection('airport', 'inventory');
-          await this.database.createCollection('hotel', 'inventory');
-          await this.database.createCollection('post', 'inventory');
-          await this.database.createCollection('landmark', 'inventory');
-          await this.database.createCollection('route', 'inventory');
-          await this.database.createCollection('users', 'tenant_agent_00');
-          await this.database.createCollection('bookings', 'tenant_agent_00');
-          console.log('✅ Sample collections created');
-        } catch (error) {
-          console.log('⚠️ Could not create sample collections (this is normal for production):', error);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Failed to setup database hotel:', error);
-      throw error;
+    await this.database.open();
+    const collections = await this.database.collections();
+    console.log(`📊 Database opened. Found ${collections.length} collections:`, collections.map(c => c.name));
+    
+    //check to see if we are missing the travel sample collections, if so then create them
+    if (collections.length === 1) {
+      console.log('🔧 Creating sample collections...');
+      await this.database.createCollection('airline', 'inventory');
+      await this.database.createCollection('airport', 'inventory');
+      await this.database.createCollection('hotel', 'inventory');
+      await this.database.createCollection('landmark', 'inventory');
+      await this.database.createCollection('route', 'inventory');
+      await this.database.createCollection('users', 'tenant_agent_00');
+      await this.database.createCollection('bookings', 'tenant_agent_00');
+      console.log('✅ Sample collections created');
     }
   }
 
@@ -1004,116 +641,31 @@ export class DatabaseService {
         database: capellaConfig.DATABASE_NAME,
         collections: collections.map(c => c.name)
       });
-      
-      try {
-        const targetUrl = new URLEndpoint(capellaConfig.SYNC_GATEWAY_URL);
-        const auth = new BasicAuthenticator(
-          capellaConfig.AUTH.username,
-          capellaConfig.AUTH.password
-        );
 
-        const config = new ReplicatorConfiguration(targetUrl);
-        config.addCollections(collections);
-        config.setAuthenticator(auth);
-        config.setContinuous(capellaConfig.SYNC.continuous);
-        config.setAcceptOnlySelfSignedCerts(capellaConfig.SYNC.acceptSelfSignedCerts);
-        
-        // Add additional configuration for better connection handling
-        config.setHeartbeat(60); // 60 second heartbeat
-        config.setMaxAttempts(5); // 5 retry attempts
-        config.setMaxAttemptWaitTime(300); // 5 minutes max wait time
-        
-        console.log(`🔄 Setting up replicator with ${collections.length} collections:`, collections.map(c => c.name));
-        
-        this.replicator = await Replicator.create(config);
-        
-        // Verify replicator was created successfully
-        if (!this.replicator) {
-          throw new Error('Failed to create replicator - replicator is null');
-        }
-        
-        console.log('✅ Replicator created successfully');
-        
-        // Get initial status
-        const initialStatus = this.replicator.status;
-        console.log('📊 Initial replicator status:', {
-          activity: initialStatus?.activity || 'undefined',
-          error: initialStatus?.error?.message || 'No error',
-          progress: initialStatus?.progress ? `${initialStatus.progress.completed}/${initialStatus.progress.total}` : '0/0'
-        });
-        
-        // Set initial sync status
-        this.syncStatus = initialStatus;
-        
-      } catch (error) {
-        console.error('❌ Error creating replicator:', error);
-        throw error;
-      }
+      //****************************************************************
+      //YOU MUST CHANGE THIS TO YOUR LOCAL IP ADDRESS OR TO YOUR CAPELLA CONNECTION STRING
+      //****************************************************************
+      const targetUrl = new URLEndpoint(capellaConfig.SYNC_GATEWAY_URL);
+
+      //****************************************************************
+      //YOU MUST CREATE THIS USER IN YOUR SYNC GATEWAY CONFIGURATION OR CAPPELLA APP SERVICE ENDPOINT
+      //****************************************************************
+      const auth = new BasicAuthenticator(
+        capellaConfig.AUTH.username,
+        capellaConfig.AUTH.password
+      );
+
+      const config = new ReplicatorConfiguration(targetUrl);
+      config.addCollections(collections);
+      config.setAuthenticator(auth);
+      config.setContinuous(true);
+      config.setAcceptOnlySelfSignedCerts(false);
       
-      // Set up replicator listener for status updates
-      this.replicator.addChangeListener((change) => {
-        console.log('🔄 Replicator change listener triggered:', {
-          activity: change.status.activity || 'undefined',
-          error: change.status.error?.message || 'No error',
-          progress: change.status.progress ? `${change.status.progress.completed}/${change.status.progress.total}` : '0/0'
-        });
-        
-        this.syncStatus = change.status;
-        this.isOnline = change.status.activity !== ReplicatorActivityLevel.OFFLINE;
-        
-        // Notify all listeners
-        this.syncListeners.forEach(listener => {
-          listener(change.status);
-        });
-        
-        // Enhanced status logging with better error handling
-        const activity = change.status.activity || 'undefined';
-        const progress = change.status.progress ? `${change.status.progress.completed}/${change.status.progress.total}` : '0/0';
-        
-        console.log(`🔄 Sync Status: ${activity}, Progress: ${progress}`);
-        
-        if (change.status.error) {
-          console.error('❌ Sync Error Details:', {
-            error: change.status.error,
-            code: change.status.error.code,
-            domain: change.status.error.domain,
-            message: change.status.error.message,
-            activity: change.status.activity,
-            progress: change.status.progress
-          });
-          
-          // Provide specific guidance for common errors
-          if (change.status.error.message?.includes('Unauthorized')) {
-            console.error('🔐 Authentication Error: Check your username/password in src/config/capella.config.ts');
-            console.error('   Make sure the user exists in your Capella App Service');
-          } else if (change.status.error.message?.includes('Connection refused')) {
-            console.error('🌐 Connection Error: Check your App Service URL in src/config/capella.config.ts');
-            console.error('   Verify the App Service is running and accessible');
-          } else if (change.status.error.message?.includes('Database not found')) {
-            console.error('🗄️ Database Error: Check your database name in the URL');
-            console.error('   Ensure the database exists in your Capella cluster');
-          } else if (change.status.error.message?.includes('Collection') && change.status.error.message?.includes('not found')) {
-            console.error('📦 Collection Error: Your Capella database only has the default collection');
-            console.error('   The app has been updated to work with your database structure');
-            console.error('   All data will be stored in the default collection');
-          } else {
-            console.error('❓ Unknown Sync Error: Check your Capella configuration and network connection');
-          }
-        } else if (change.status.activity === ReplicatorActivityLevel.IDLE) {
-          console.log('✅ Sync Status: IDLE - Sync completed successfully');
-        } else if (change.status.activity === ReplicatorActivityLevel.OFFLINE) {
-          console.log('⚠️ Sync Status: OFFLINE - No network connection');
-        } else if (change.status.activity === ReplicatorActivityLevel.CONNECTING) {
-          console.log('🔄 Sync Status: CONNECTING - Establishing connection...');
-        } else if (change.status.activity === ReplicatorActivityLevel.BUSY) {
-          console.log('🔄 Sync Status: BUSY - Syncing data...');
-        } else if (change.status.activity === ReplicatorActivityLevel.STOPPED) {
-          console.log('🛑 Sync Status: STOPPED - Replicator is stopped');
-        } else if (!change.status.activity) {
-          console.log('❓ Sync Status: UNDEFINED - Replicator status is not available');
-          console.log('🔍 This might indicate a connection issue or replicator not properly initialized');
-        }
-      });
+      console.log(`🔄 Setting up replicator with ${collections.length} collections:`, collections.map(c => c.name));
+      
+      this.replicator = await Replicator.create(config);
+      
+      console.log('✅ Replicator created successfully');
     } else {
       throw new Error('No collections found to set replicator to');
     }
@@ -1199,18 +751,8 @@ export class DatabaseService {
     body: string;
   }) {
     try {
-      let postCollection;
-      let isNewCollection = false;
-      
-      try {
-        // Try to get the post collection from inventory scope
-        postCollection = await this.database?.collection('post', 'inventory');
-      } catch (error) {
-        console.log('⚠️ Post collection not found in inventory scope, using default collection');
-        // Fallback to default collection
-        postCollection = await this.database?.defaultCollection();
-      }
-      
+      // Use default collection for posts
+      const postCollection = await this.database?.defaultCollection();
       if (!postCollection) throw new Error('No collection available for saving posts');
 
       const docId = `post_${new Date().getTime()}`;
@@ -1220,18 +762,10 @@ export class DatabaseService {
       doc.setString('userId', postData.userId);
       doc.setString('title', postData.title);
       doc.setString('body', postData.body);
-      doc.setString('type', 'post'); // Add type for filtering in default collection
+      doc.setString('type', 'post'); // Add type for filtering
 
       await postCollection.save(doc);
       console.log(`✅ Post document ${docId} saved.`);
-      
-      // If we're using a specific collection (not default), ensure replicator is syncing it
-      if (postCollection.name !== '_default') {
-        await this.ensureCollectionSynced(postCollection);
-      }
-      
-      // Trigger sync to ensure document is replicated
-      await this.triggerDocumentSync();
       
       return docId;
     } catch (error) {
