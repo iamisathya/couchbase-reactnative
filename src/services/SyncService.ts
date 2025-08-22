@@ -251,13 +251,15 @@ class SyncService {
       this.updateSyncStatus({ isSyncing: true, error: null });
       console.log('🗑️ Force syncing deletions to cloud...');
 
-      // Check if replicator is connected first
-      if (!this.dbService.isReplicatorConnected()) {
-        console.log('⚠️ Replicator not connected, attempting to start...');
+      // Try to ensure replicator is running
+      try {
+        console.log('🔄 Ensuring replicator is running...');
         await this.dbService.triggerSimpleSync();
         
         // Wait a moment for connection
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (error) {
+        console.log('⚠️ Failed to start replicator, proceeding anyway:', error);
       }
 
       // Force sync deletions

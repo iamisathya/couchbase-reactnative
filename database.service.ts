@@ -125,17 +125,19 @@ export class DatabaseService {
         // Check if replicator is already running
         const currentStatus = this.replicator.status;
         console.log('🔄 Current replicator status:', {
-          activity: currentStatus.activity,
-          error: currentStatus.error?.message || 'No error'
+          activity: currentStatus?.activity || 'undefined',
+          error: currentStatus?.error?.message || 'No error'
         });
         
-        // Stop the replicator if it's running
-        if (currentStatus.activity !== ReplicatorActivityLevel.STOPPED) {
+        // Stop the replicator if it's running and status is available
+        if (currentStatus && currentStatus.activity !== ReplicatorActivityLevel.STOPPED) {
           await this.replicator.stop();
           console.log('🛑 Replicator stopped');
           
           // Wait a moment for the stop to complete
           await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          console.log('🔄 Replicator is already stopped or status unavailable');
         }
         
         // Restart the replicator
@@ -242,22 +244,36 @@ export class DatabaseService {
    */
   public isReplicatorConnected(): boolean {
     if (!this.replicator) {
+      console.log('🔍 Replicator connection check: No replicator instance');
       return false;
     }
     
-    const status = this.replicator.status;
-    const isConnected = status.activity === ReplicatorActivityLevel.IDLE || 
-                       status.activity === ReplicatorActivityLevel.BUSY ||
-                       status.activity === ReplicatorActivityLevel.CONNECTING;
-    
-    console.log('🔍 Replicator connection check:', {
-      hasReplicator: !!this.replicator,
-      activity: status.activity,
-      isConnected,
-      error: status.error?.message || 'No error'
-    });
-    
-    return isConnected;
+    try {
+      const status = this.replicator.status;
+      
+      // Check if status is available
+      if (!status) {
+        console.log('🔍 Replicator connection check: Status is undefined');
+        return false;
+      }
+      
+      const isConnected = status.activity === ReplicatorActivityLevel.IDLE || 
+                         status.activity === ReplicatorActivityLevel.BUSY ||
+                         status.activity === ReplicatorActivityLevel.CONNECTING;
+      
+      console.log('🔍 Replicator connection check:', {
+        hasReplicator: !!this.replicator,
+        hasStatus: !!status,
+        activity: status.activity || 'undefined',
+        isConnected,
+        error: status.error?.message || 'No error'
+      });
+      
+      return isConnected;
+    } catch (error) {
+      console.error('🔍 Replicator connection check error:', error);
+      return false;
+    }
   }
 
   /**
