@@ -262,6 +262,38 @@ export class DatabaseService {
   }
 
   /**
+   * Trigger sync for newly saved documents
+   */
+  private async triggerDocumentSync(): Promise<void> {
+    if (!this.replicator) {
+      console.log('⚠️ Replicator not initialized, cannot trigger document sync');
+      return;
+    }
+
+    try {
+      console.log('🔄 Triggering document sync...');
+      
+      // Get current status
+      const status = this.replicator.status;
+      console.log('📊 Current status before document sync:', {
+        activity: status?.activity || 'undefined',
+        error: status?.error?.message || 'No error'
+      });
+      
+      // If replicator is not running, start it
+      if (status?.activity === ReplicatorActivityLevel.STOPPED) {
+        await this.replicator.start(true);
+        console.log('✅ Replicator started for document sync');
+      } else {
+        console.log('✅ Replicator is already running');
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to trigger document sync:', error);
+    }
+  }
+
+  /**
    * Test replicator connection
    */
   public async testReplicatorConnection(): Promise<boolean> {
@@ -367,6 +399,46 @@ export class DatabaseService {
   }
 
   /**
+   * Ensure a collection is being synced by the replicator
+   */
+  private async ensureCollectionSynced(collection: Collection): Promise<void> {
+    if (!this.replicator) {
+      console.log('⚠️ Replicator not initialized, cannot ensure collection sync');
+      return;
+    }
+
+    try {
+      console.log(`🔍 Ensuring collection ${collection.name} is synced...`);
+      
+      // Get current replicator configuration
+      const config = this.replicator.config;
+      const currentCollections = config.collections;
+      
+      // Check if collection is already being synced
+      const isAlreadySynced = currentCollections.some(c => c.name === collection.name);
+      
+      if (!isAlreadySynced) {
+        console.log(`🔄 Adding collection ${collection.name} to replicator...`);
+        
+        // Stop replicator
+        await this.replicator.stop();
+        
+        // Add collection to configuration
+        config.addCollections([collection]);
+        
+        // Restart replicator
+        await this.replicator.start(true);
+        
+        console.log(`✅ Collection ${collection.name} added to replicator`);
+      } else {
+        console.log(`✅ Collection ${collection.name} is already being synced`);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to ensure collection ${collection.name} is synced:`, error);
+    }
+  }
+
+  /**
    * returns type of activities in the inventory.location collection
    */
   public async getActivities() {
@@ -408,7 +480,16 @@ export class DatabaseService {
         }
       }
       
-      console.log(`📦 Total collections for sync: ${collections.length}`);
+      // Ensure we have at least the default collection for sync
+      if (collections.length === 0) {
+        console.log('⚠️ No collections found, using default collection');
+        const defaultCollection = await this.database?.defaultCollection();
+        if (defaultCollection) {
+          collections.push(defaultCollection);
+        }
+      }
+      
+      console.log(`📦 Total collections for sync: ${collections.length}:`, collections.map(c => c.name));
       return collections;
     } catch (error) {
       console.error('Error getting collections:', error);
@@ -1119,6 +1200,7 @@ export class DatabaseService {
   }) {
     try {
       let postCollection;
+      let isNewCollection = false;
       
       try {
         // Try to get the post collection from inventory scope
@@ -1142,6 +1224,15 @@ export class DatabaseService {
 
       await postCollection.save(doc);
       console.log(`✅ Post document ${docId} saved.`);
+      
+      // If we're using a specific collection (not default), ensure replicator is syncing it
+      if (postCollection.name !== '_default') {
+        await this.ensureCollectionSynced(postCollection);
+      }
+      
+      // Trigger sync to ensure document is replicated
+      await this.triggerDocumentSync();
+      
       return docId;
     } catch (error) {
       console.error('❌ Failed to save post:', error);
