@@ -5,12 +5,12 @@
  */
 
 export const TEST_CAPELLA_CONFIG = {
-  // Replace these with your actual values
-  SYNC_GATEWAY_URL: 'wss://YOUR-APP-SERVICE.apps.cloud.couchbase.com:4984/YOUR-DATABASE',
-  DATABASE_NAME: 'travel',
+  // Your actual Capella configuration
+  SYNC_GATEWAY_URL: 'wss://lrmbc7notplwhjuy.apps.cloud.couchbase.com:4984/couchbase-app-endpoint',
+  DATABASE_NAME: 'couchbase-app-bucket',
   AUTH: {
-    username: 'YOUR_USERNAME',
-    password: 'YOUR_PASSWORD',
+    username: 'appserviceuser',
+    password: '1@Password',
   },
 };
 
@@ -23,8 +23,9 @@ export const testCapellaConnection = () => {
   console.log('Username:', TEST_CAPELLA_CONFIG.AUTH.username);
   console.log('Database:', TEST_CAPELLA_CONFIG.DATABASE_NAME);
   
-  // Check if still using placeholders
-  if (TEST_CAPELLA_CONFIG.SYNC_GATEWAY_URL.includes('YOUR-APP-SERVICE')) {
+  // Check if configuration is properly set
+  if (TEST_CAPELLA_CONFIG.SYNC_GATEWAY_URL.includes('YOUR-APP-SERVICE') || 
+      TEST_CAPELLA_CONFIG.SYNC_GATEWAY_URL.includes('xxxxxx')) {
     console.error('❌ Please update the test configuration with your actual values');
     return false;
   }

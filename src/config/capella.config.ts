@@ -9,16 +9,14 @@
 
 export const CAPELLA_CONFIG = {
   // Your Capella App Service endpoint URL
-  // Format: wss://your-app-service.apps.cloud.couchbase.com:4984/your-database
-  SYNC_GATEWAY_URL: 'wss://ucledcbvi7byidag.apps.cloud.couchbase.com:4984/sathya-couchbase',
+  SYNC_GATEWAY_URL: 'wss://lrmbc7notplwhjuy.apps.cloud.couchbase.com:4984/couchbase-app-endpoint',
   
   // Database name (should match your Capella database name)
-  DATABASE_NAME: 'dryrun',
+  DATABASE_NAME: 'couchbase-app-bucket',
   
   // Authentication credentials
-  // Create these users in your Capella App Service configuration
   AUTH: {
-    username: 'admin',
+    username: 'appserviceuser',
     password: '1@Password',
   },
   
@@ -67,23 +65,23 @@ export const validateCapellaConfig = () => {
   console.log('URL:', config.SYNC_GATEWAY_URL);
   console.log('Username:', config.AUTH.username);
   console.log('Database:', config.DATABASE_NAME);
+  console.log('Cluster:', 'couchbasecluster');
+  console.log('Bucket:', 'couchbase-app-bucket');
   
-  if (config.SYNC_GATEWAY_URL.includes('xxxxxx')) {
+  // Validate that we have proper configuration
+  if (!config.SYNC_GATEWAY_URL || config.SYNC_GATEWAY_URL.includes('xxxxxx')) {
     throw new Error(
       '❌ Capella configuration not set up. Please update src/config/capella.config.ts with your actual Capella credentials.'
     );
   }
   
-  if (config.SYNC_GATEWAY_URL === 'wss://xxxxxx.apps.cloud.couchbase.com:4984/travel-location') {
+  if (!config.AUTH.username || !config.AUTH.password) {
     throw new Error(
-      '❌ Please replace the placeholder URL with your actual Capella App Service URL'
+      '❌ Authentication credentials not configured. Please update username and password.'
     );
   }
   
-  if (config.AUTH.username === 'demo@example.com' && config.AUTH.password === 'P@ssw0rd12') {
-    console.warn('⚠️ Using default credentials. Consider updating with your actual Capella user credentials.');
-  }
-  
-  console.log('✅ Capella configuration validated');
+  console.log('✅ Capella configuration validated successfully');
+  console.log('✅ Ready for replication and sync with Capella');
   return config;
 };

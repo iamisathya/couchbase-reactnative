@@ -563,7 +563,8 @@ export class DatabaseService {
       dc.setDirectory(directoryPath);
       dc.setEncryptionKey('8e31f8f6-60bd-482a-9c70-69855dd02c39');
 
-      this.database = new Database('travel', dc);
+      const capellaConfig = getCapellaConfig();
+      this.database = new Database(capellaConfig.DATABASE_NAME, dc);
 
       await this.database.open();
       const collections = await this.database.collections();
