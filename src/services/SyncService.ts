@@ -242,8 +242,20 @@ class SyncService {
       throw new Error('Database service not initialized');
     }
 
+    // Check network status
+    const networkStatus = NetworkService.getCurrentStatus();
+    console.log('🌐 Network status for sync:', {
+      isConnected: networkStatus.isConnected,
+      isInternetReachable: networkStatus.isInternetReachable,
+      type: networkStatus.type
+    });
+
     if (!NetworkService.isOnline()) {
-      console.log('Network offline, cannot sync deletions');
+      console.log('⚠️ Network offline, deletions saved locally - will sync when online');
+      this.updateSyncStatus({
+        isSyncing: false,
+        error: 'Network offline - deletions saved locally',
+      });
       return;
     }
 
@@ -277,11 +289,32 @@ class SyncService {
       console.log('✅ Deletions synced to cloud.');
     } catch (error) {
       console.error('❌ Failed to sync deletions to cloud:', error);
+      
+      // Provide user-friendly error message
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) {
+        if (error.message.includes('undefined - check connection')) {
+          errorMessage = 'Network connection issue - deletions saved locally';
+        } else if (error.message.includes('offline')) {
+          errorMessage = 'Device offline - deletions saved locally';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Sync timeout - deletions saved locally';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       this.updateSyncStatus({
         isSyncing: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
       });
-      throw error;
+      
+      // Don't throw error for network issues - data is saved locally
+      if (errorMessage.includes('saved locally')) {
+        console.log('✅ Deletions saved locally - will sync when connection is restored');
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -365,9 +398,11 @@ class SyncService {
     }
 
     if (!NetworkService.isOnline()) {
-      console.log('Network offline, clearing local posts only');
+      console.log('⚠️ Network offline, clearing local posts only - will sync when online');
       // Still clear locally even if offline
-      return await this.dbService.deleteAllPosts();
+      const deletedCount = await this.dbService.deleteAllPosts();
+      console.log(`✅ Cleared ${deletedCount} posts from local database - will sync when online`);
+      return deletedCount;
     }
 
     try {
@@ -390,6 +425,21 @@ class SyncService {
       return deletedCount;
     } catch (error) {
       console.error('❌ Failed to clear all posts:', error);
+      
+      // Check if it's a network-related error
+      if (error instanceof Error && 
+          (error.message.includes('saved locally') || 
+           error.message.includes('Network offline') ||
+           error.message.includes('connection issue'))) {
+        console.log('✅ Posts cleared locally - will sync to cloud when connection is restored');
+        this.updateSyncStatus({
+          isSyncing: false,
+          error: 'Posts cleared locally - will sync when online',
+        });
+        // Don't throw error for network issues since data is cleared locally
+        return 0; // Return 0 since we don't know the exact count
+      }
+      
       this.updateSyncStatus({
         isSyncing: false,
         error: error instanceof Error ? error.message : 'Unknown error',

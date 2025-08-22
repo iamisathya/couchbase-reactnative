@@ -172,6 +172,7 @@ export class DatabaseService {
                 console.error('❌ Deletion sync failed: Replicator status is undefined after 10 checks');
                 console.error('🔍 This usually means the replicator is not connecting to Capella');
                 console.error('🔍 Check your network connection and Capella App Service status');
+                console.error('🔍 The deletions have been saved locally and will sync when connection is restored');
                 reject(new Error('Deletion sync failed: Replicator status is undefined - check connection'));
                 return;
               }
@@ -192,6 +193,7 @@ export class DatabaseService {
             } else if (status.activity === ReplicatorActivityLevel.OFFLINE) {
               clearTimeout(timeout);
               console.error('❌ Deletion sync failed: Replicator is offline');
+              console.error('🔍 The deletions have been saved locally and will sync when connection is restored');
               reject(new Error('Deletion sync failed: Replicator is offline'));
             } else if (status.activity === ReplicatorActivityLevel.STOPPED) {
               clearTimeout(timeout);
@@ -200,6 +202,7 @@ export class DatabaseService {
             } else if (checkCount >= maxChecks) {
               clearTimeout(timeout);
               console.error('❌ Deletion sync failed: Maximum checks reached');
+              console.error('🔍 The deletions have been saved locally and will sync when connection is restored');
               reject(new Error('Deletion sync failed: Maximum checks reached - sync may be stuck'));
             } else {
               // Continue checking
