@@ -150,20 +150,19 @@ export class DatabaseService {
   }
 
   /**
-   * returns type of activities in the inventory.location collection
+   * returns type of activities in the default collection
    */
   public async getActivities() {
     const queryStr =
-      'SELECT DISTINCT activity FROM inventory.landmark as activity WHERE landmark.activity IS NOT MISSING';
+      'SELECT DISTINCT type FROM _default._default as doc WHERE doc.type IS NOT MISSING';
     return this.database?.createQuery(queryStr).execute();
   }
 
   /**
    * Retrieves the collections from the database.
    *
-   * This function fetches the `hotel` and `landmark` collections from the
-   *`inventory` scope of the database. If the collections are found, they
-   * are added to an array and returned.
+   * This function fetches only the default collection to ensure all collections
+   * are from the same database and scope.
    *
    * @returns {Promise<Collection[]>} A promise that resolves to an array of `Collection` objects.
    * @throws Will throw an error if the database is not initialized.
@@ -171,32 +170,11 @@ export class DatabaseService {
   private async getCollections(): Promise<Collection[]> {
     const collections: Collection[] = [];
     
-    // Get default collection for posts
+    // Only use the default collection to avoid scope conflicts
     const defaultCollection = await this.database?.defaultCollection();
     if (defaultCollection) {
       collections.push(defaultCollection);
       console.log('✅ Using default collection for sync');
-    }
-    
-    // Get hotel and landmark collections if they exist
-    try {
-      const hotelCollection = await this.database?.collection('hotel', 'inventory');
-      if (hotelCollection !== undefined) {
-        collections.push(hotelCollection);
-        console.log('✅ Using hotel collection for sync');
-      }
-    } catch (error) {
-      console.log('⚠️ Hotel collection not found');
-    }
-    
-    try {
-      const landmarkCollection = await this.database?.collection('landmark', 'inventory');
-      if (landmarkCollection !== undefined) {
-        collections.push(landmarkCollection);
-        console.log('✅ Using landmark collection for sync');
-      }
-    } catch (error) {
-      console.log('⚠️ Landmark collection not found');
     }
     
     console.log(`📦 Total collections for sync: ${collections.length}:`, collections.map(c => c.name));
@@ -204,20 +182,20 @@ export class DatabaseService {
   }
 
   /**
-   * returns an array of ResultSet objects for the hotels that match the Full Text Search term in the inventory.hotel collection
+   * returns an array of ResultSet objects for the posts that match the search term in the default collection
    * @param searchTerm
    */
-  public async getHotelsBySearchTerm(searchTerm: string) {
-    const queryStr = `SELECT * FROM inventory.hotel as hotel WHERE MATCH(idxTextSearch, '${searchTerm}')`;
+  public async getPostsBySearchTerm(searchTerm: string) {
+    const queryStr = `SELECT * FROM _default._default as doc WHERE doc.type = 'post' AND (doc.title LIKE '%${searchTerm}%' OR doc.body LIKE '%${searchTerm}%')`;
     return this.database?.createQuery(queryStr).execute();
   }
 
   /**
-   * returns all hotels in the inventory.hotel collection
+   * returns all posts in the default collection
    */
-  public async getHotels() {
+  public async getAllPosts() {
     try {
-      const queryStr = 'SELECT * FROM inventory.hotel as hotel';
+      const queryStr = 'SELECT * FROM _default._default as doc WHERE doc.type = "post"';
       return this.database?.createQuery(queryStr).execute();
     } catch (error) {
       console.debug(`Error: ${error}`);
@@ -270,38 +248,15 @@ export class DatabaseService {
 
   public async deletePostById(postId: string) {
     try {
-      let postCollection;
-      
-      try {
-        // Try to get the post collection from inventory scope
-        postCollection = await this.database?.collection('post', 'inventory');
-      } catch (error) {
-        console.log('⚠️ Post collection not found in inventory scope, using default collection');
-        // Fallback to default collection
-        postCollection = await this.database?.defaultCollection();
-      }
-      
+      const postCollection = await this.database?.defaultCollection();
       if (!postCollection) throw new Error('No collection available for deleting posts');
 
       // Query to find the document by post ID
-      let queryStr;
-      try {
-        queryStr = `SELECT meta().id as docId FROM inventory.post WHERE post.id = '${postId}'`;
-        const result = await this.database?.createQuery(queryStr).execute();
-        if (result && result.length > 0) {
-          const docId = result[0].docId;
-          return await this.deletePost(docId);
-        }
-      } catch (error) {
-        console.log('⚠️ inventory.post collection not found, querying from default collection');
-        
-        // Fallback to default collection
-        queryStr = `SELECT meta().id as docId FROM _default._default WHERE type = 'post' AND id = '${postId}'`;
-        const result = await this.database?.createQuery(queryStr).execute();
-        if (result && result.length > 0) {
-          const docId = result[0].docId;
-          return await this.deletePost(docId);
-        }
+      const queryStr = `SELECT meta().id as docId FROM _default._default WHERE type = 'post' AND id = '${postId}'`;
+      const result = await this.database?.createQuery(queryStr).execute();
+      if (result && result.length > 0) {
+        const docId = result[0].docId;
+        return await this.deletePost(docId);
       }
       
       throw new Error(`Post with ID ${postId} not found`);
@@ -466,18 +421,9 @@ export class DatabaseService {
     const collections = await this.database.collections();
     console.log(`📊 Database opened. Found ${collections.length} collections:`, collections.map(c => c.name));
     
-    //check to see if we are missing the travel sample collections, if so then create them
-    if (collections.length === 1) {
-      console.log('🔧 Creating sample collections...');
-      await this.database.createCollection('airline', 'inventory');
-      await this.database.createCollection('airport', 'inventory');
-      await this.database.createCollection('hotel', 'inventory');
-      await this.database.createCollection('landmark', 'inventory');
-      await this.database.createCollection('route', 'inventory');
-      await this.database.createCollection('users', 'tenant_agent_00');
-      await this.database.createCollection('bookings', 'tenant_agent_00');
-      console.log('✅ Sample collections created');
-    }
+    // Only create collections if we need them for other features
+    // For now, we'll use only the default collection to avoid scope conflicts
+    console.log('✅ Using default collection only for sync');
   }
 
   async saveToCollection() {
@@ -520,43 +466,7 @@ export class DatabaseService {
     }
   }
 
-  /**
-   * Sets up the indexes for the `hotel` collection in the database.
-   *
-   * This function creates the following indexes for the `hotel` collection:
-   * - `idxTextSearch`: A full-text index on the `address`, `city`, `country`, and `description` fields.
-   * - `idxVacancy`: A value index on the `vacancy` field.
-   *
-   * The full-text index (`idxTextSearch`) is configured to ignore accents.
-   *
-   * @private
-   * @throws Will throw an error if the index creation fails.
-   */
-  private async setupHotelIndexes() {
-    const hotelCollection = await this.database?.collection(
-      'hotel',
-      'inventory',
-    );
-    //setup full text index for hotel collection
-    const ipAddress = FullTextIndexItem.property('address');
-    const ipCity = FullTextIndexItem.property('city');
-    const ipCountry = FullTextIndexItem.property('country');
-    const ipDescription = FullTextIndexItem.property('description');
-    const idxFullTextSearch = IndexBuilder.fullTextIndex(
-      ipAddress,
-      ipCity,
-      ipCountry,
-      ipDescription,
-    ).setIgnoreAccents(true);
 
-    await hotelCollection?.createIndex('idxTextSearch', idxFullTextSearch);
-
-    //setup index to filter hotels by vacancy
-    const vacancyValueIndex = IndexBuilder.valueIndex(
-      ValueIndexItem.property('vacancy'),
-    );
-    await hotelCollection?.createIndex('idxVacancy', vacancyValueIndex);
-  }
 
   /**
    * Sets up the indexes for the `hotel` and `landmark` collections in the database.
@@ -569,54 +479,11 @@ export class DatabaseService {
    */
   private async setupIndexes() {
     if (this.database !== undefined) {
-      await this.setupHotelIndexes();
-      await this.setupPostIndexes();
-      await this.setupLandmarkIndexes();
+      console.log('✅ No specific indexes needed for default collection');
     }
   }
 
-  /**
-   * Sets up the indexes for the `landmark` collection in the database.
-   *
-   * This function creates the following indexes for the `landmark` collection:
-   * - `idxLandmarkActivity`: A value index on the `activity` and `name` fields to ensure only valid activities with names are indexed.
-   * - `idxLandmarkTextSearch`: A value index on the `title`, `name`, `address`, `city`, `state`, `country`, and `activity` fields for text search.
-   *
-   * @private
-   * @throws Will throw an error if the index creation fails.
-   */
-  private async setupLandmarkIndexes() {
-    const landmarkCollection = await this.database?.collection(
-      'landmark',
-      'inventory',
-    );
-    /*
-        setup landmark activity index - we need to make sure we only grab activities that have names because the dataset is not clean and has some rubbish in it
-         */
-    const activityValueIndex = IndexBuilder.valueIndex(
-      ValueIndexItem.property('activity'),
-      ValueIndexItem.property('name'),
-    );
-    await landmarkCollection?.createIndex(
-      'idxLandmarkActivity',
-      activityValueIndex,
-    );
 
-    //standard indexed fields for text search
-    const idxLandmarkTextSearch = IndexBuilder.valueIndex(
-      ValueIndexItem.property('title'),
-      ValueIndexItem.property('name'),
-      ValueIndexItem.property('address'),
-      ValueIndexItem.property('city'),
-      ValueIndexItem.property('state'),
-      ValueIndexItem.property('country'),
-      ValueIndexItem.property('activity'),
-    );
-    await landmarkCollection?.createIndex(
-      'idxLandmarkTextSearch',
-      idxLandmarkTextSearch,
-    );
-  }
 
   /**
    * Sets up the replicator for the database.
@@ -717,31 +584,7 @@ export class DatabaseService {
    * @private
    * @throws Will throw an error if the index creation fails.
    */
-  private async setupPostIndexes() {
-    const postCollection = await this.database?.collection(
-      'post',
-      'inventory',
-    );
-    //setup full text index for hotel collection
-    const ipId = FullTextIndexItem.property('id');
-    const ipUserId = FullTextIndexItem.property('userId');
-    const ipTitle = FullTextIndexItem.property('title');
-    const ipBody = FullTextIndexItem.property('body');
-    const idxFullTextSearch = IndexBuilder.fullTextIndex(
-      ipId,
-      ipUserId,
-      ipTitle,
-      ipBody,
-    ).setIgnoreAccents(true);
 
-    await postCollection?.createIndex('idxTextSearch', idxFullTextSearch);
-
-    //setup index to filter hotels by vacancy
-    const vacancyValueIndex = IndexBuilder.valueIndex(
-      ValueIndexItem.property('vacancy'),
-    );
-    await postCollection?.createIndex('idxVacancy', vacancyValueIndex);
-  }
 
 
   public async savePost(postData: {
@@ -779,17 +622,7 @@ export class DatabaseService {
   body: string;
 }) {
     try {
-      let postCollection;
-      
-      try {
-        // Try to get the post collection from inventory scope
-        postCollection = await this.database?.collection('post', 'inventory');
-      } catch (error) {
-        console.log('⚠️ Post collection not found in inventory scope, using default collection');
-        // Fallback to default collection
-        postCollection = await this.database?.defaultCollection();
-      }
-      
+      const postCollection = await this.database?.defaultCollection();
       if (!postCollection) throw new Error('No collection available for updating posts');
 
       const existingDoc = await postCollection.getDocument(docId);
