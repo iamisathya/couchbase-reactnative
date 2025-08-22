@@ -251,15 +251,18 @@ class SyncService {
       this.updateSyncStatus({ isSyncing: true, error: null });
       console.log('🗑️ Force syncing deletions to cloud...');
 
-      // Try to ensure replicator is running
+      // Test replicator connection first
       try {
-        console.log('🔄 Ensuring replicator is running...');
-        await this.dbService.triggerSimpleSync();
+        console.log('🔄 Testing replicator connection...');
+        const isConnected = await this.dbService.testReplicatorConnection();
         
-        // Wait a moment for connection
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        if (!isConnected) {
+          console.log('⚠️ Replicator connection test failed, but proceeding with sync');
+        } else {
+          console.log('✅ Replicator connection test passed');
+        }
       } catch (error) {
-        console.log('⚠️ Failed to start replicator, proceeding anyway:', error);
+        console.log('⚠️ Replicator connection test failed, proceeding anyway:', error);
       }
 
       // Force sync deletions

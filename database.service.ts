@@ -167,9 +167,11 @@ export class DatabaseService {
             
             // Check if we have a valid status
             if (!status || status.activity === undefined) {
-              if (checkCount >= 5) { // After 5 checks, if still undefined, there's an issue
+              if (checkCount >= 10) { // Increased to 10 checks to give more time
                 clearTimeout(timeout);
-                console.error('❌ Deletion sync failed: Replicator status is undefined');
+                console.error('❌ Deletion sync failed: Replicator status is undefined after 10 checks');
+                console.error('🔍 This usually means the replicator is not connecting to Capella');
+                console.error('🔍 Check your network connection and Capella App Service status');
                 reject(new Error('Deletion sync failed: Replicator status is undefined - check connection'));
                 return;
               }
@@ -236,6 +238,54 @@ export class DatabaseService {
       console.log('✅ Simple sync triggered successfully');
     } else {
       throw new Error('Replicator not initialized');
+    }
+  }
+
+  /**
+   * Test replicator connection
+   */
+  public async testReplicatorConnection(): Promise<boolean> {
+    if (!this.replicator) {
+      console.log('❌ Replicator not initialized');
+      return false;
+    }
+
+    try {
+      console.log('🔍 Testing replicator connection...');
+      
+      // Get current status
+      const status = this.replicator.status;
+      console.log('📊 Current replicator status:', {
+        activity: status?.activity || 'undefined',
+        error: status?.error?.message || 'No error',
+        progress: status?.progress ? `${status.progress.completed}/${status.progress.total}` : '0/0'
+      });
+
+      // Try to start the replicator
+      await this.replicator.start(true);
+      console.log('✅ Replicator started successfully');
+
+      // Wait a moment for status to update
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Check status again
+      const newStatus = this.replicator.status;
+      console.log('📊 Updated replicator status:', {
+        activity: newStatus?.activity || 'undefined',
+        error: newStatus?.error?.message || 'No error',
+        progress: newStatus?.progress ? `${newStatus.progress.completed}/${newStatus.progress.total}` : '0/0'
+      });
+
+      const isConnected = newStatus?.activity === ReplicatorActivityLevel.IDLE || 
+                         newStatus?.activity === ReplicatorActivityLevel.BUSY ||
+                         newStatus?.activity === ReplicatorActivityLevel.CONNECTING;
+
+      console.log(`🔍 Connection test result: ${isConnected ? '✅ Connected' : '❌ Not connected'}`);
+      return isConnected;
+
+    } catch (error) {
+      console.error('❌ Replicator connection test failed:', error);
+      return false;
     }
   }
 
@@ -827,6 +877,13 @@ export class DatabaseService {
     if (collections.length > 0) {
       const capellaConfig = getCapellaConfig();
       
+      console.log('🔧 Setting up replicator with configuration:', {
+        url: capellaConfig.SYNC_GATEWAY_URL,
+        username: capellaConfig.AUTH.username,
+        database: capellaConfig.DATABASE_NAME,
+        collections: collections.map(c => c.name)
+      });
+      
       const targetUrl = new URLEndpoint(capellaConfig.SYNC_GATEWAY_URL);
       const auth = new BasicAuthenticator(
         capellaConfig.AUTH.username,
@@ -838,6 +895,11 @@ export class DatabaseService {
       config.setAuthenticator(auth);
       config.setContinuous(capellaConfig.SYNC.continuous);
       config.setAcceptOnlySelfSignedCerts(capellaConfig.SYNC.acceptSelfSignedCerts);
+      
+      // Add additional configuration for better connection handling
+      config.setHeartbeat(60); // 60 second heartbeat
+      config.setMaxAttempts(5); // 5 retry attempts
+      config.setMaxAttemptWaitTime(300); // 5 minutes max wait time
       
       console.log(`🔄 Setting up replicator with ${collections.length} collections:`, collections.map(c => c.name));
       
@@ -898,6 +960,7 @@ export class DatabaseService {
           console.log('🛑 Sync Status: STOPPED - Replicator is stopped');
         } else if (!change.status.activity) {
           console.log('❓ Sync Status: UNDEFINED - Replicator status is not available');
+          console.log('🔍 This might indicate a connection issue or replicator not properly initialized');
         }
       });
     } else {
