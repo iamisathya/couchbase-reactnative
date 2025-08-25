@@ -12,6 +12,7 @@ import {
   MutableDocument,
   Replicator,
   ReplicatorConfiguration,
+  ReplicatorType,
   URLEndpoint,
   ValueIndexItem,
   ReplicatorStatus,
@@ -447,11 +448,35 @@ export class DatabaseService {
       config.setContinuous(true);
       config.setAcceptOnlySelfSignedCerts(false);
       
+      // Enable bidirectional sync
+      config.setReplicatorType(ReplicatorType.PUSH_AND_PULL);
+      
+      console.log('🔧 Replicator configuration:', {
+        type: 'PUSH_AND_PULL',
+        continuous: true,
+        collections: collections.map(c => c.name)
+      });
+      
       console.log(`🔄 Setting up replicator with ${collections.length} collections:`, collections.map(c => c.name));
       
       this.replicator = await Replicator.create(config);
       
-      console.log('✅ Replicator created successfully');
+      // Add replicator status listener
+      this.replicator.addChangeListener((status) => {
+        this.syncStatus = status;
+        console.log('🔄 Replicator status changed:', {
+          activity: status.activity,
+          error: status.error?.message || 'No error',
+          progress: `${status.progress.completed}/${status.progress.total}`
+        });
+        
+        // Notify listeners
+        this.syncListeners.forEach(listener => {
+          listener(status);
+        });
+      });
+      
+      console.log('✅ Replicator created successfully with status listener');
     } else {
       throw new Error('No collections found to set replicator to');
     }
@@ -488,6 +513,16 @@ export class DatabaseService {
       if (this.replicator) {
         await this.ensureReplicatorRunning();
         console.log(`🔄 Post will be synced to Capella automatically`);
+        
+        // Log current replicator status
+        const status = this.replicator.status;
+        console.log('📊 Current replicator status:', {
+          activity: status.activity,
+          error: status.error?.message || 'No error',
+          progress: `${status.progress.completed}/${status.progress.total}`
+        });
+      } else {
+        console.warn('⚠️ Replicator not available for sync');
       }
       
       return docId;
@@ -545,13 +580,35 @@ export class DatabaseService {
     try {
       if (this.replicator) {
         const status = this.replicator.status;
+        console.log('🔍 Current replicator status:', status.activity);
+        
         if (status && status.activity === 'STOPPED') {
           console.log('🔄 Starting replicator for live sync...');
           await this.replicator.start();
+        } else if (status && status.activity === 'IDLE') {
+          console.log('✅ Replicator is already running and idle');
+        } else {
+          console.log('🔄 Replicator is currently:', status.activity);
         }
       }
     } catch (error) {
       console.error('Failed to ensure replicator is running:', error);
     }
+  }
+
+  /**
+   * Get current replicator status for debugging
+   */
+  public getReplicatorStatus() {
+    if (this.replicator) {
+      const status = this.replicator.status;
+      return {
+        activity: status.activity,
+        error: status.error?.message || null,
+        progress: `${status.progress.completed}/${status.progress.total}`,
+        isRunning: status.activity !== 'STOPPED'
+      };
+    }
+    return null;
   }
 }
