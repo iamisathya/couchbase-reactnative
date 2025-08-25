@@ -170,16 +170,17 @@ export class DatabaseService {
   private async getCollections(): Promise<Collection[]> {
     const collections: Collection[] = [];
     
-    // Use social.posts collection for posts
+    // Get social.posts collection for posts
     try {
       const postsCollection = await this.database?.collection('posts', 'social');
       if (postsCollection) {
         collections.push(postsCollection);
         console.log('✅ Using social.posts collection for sync');
+      } else {
+        console.error('❌ social.posts collection is null');
       }
     } catch (error) {
-      console.log('⚠️ social.posts collection not found, creating it...');
-      // Collection will be created when first used
+      console.error('❌ Failed to get social.posts collection:', error);
     }
     
     console.log(`📦 Total collections for sync: ${collections.length}:`, collections.map(c => c.name));
@@ -322,6 +323,15 @@ export class DatabaseService {
       const path = await this.database?.getPath();
       console.debug(`Database Setup with path: ${path}`);
       await this.setupIndexes();
+      
+      // Ensure the posts collection exists before setting up replicator
+      const postsCollection = await this.getPostCollection();
+      console.log('✅ Posts collection ensured:', postsCollection.name);
+      
+      // Verify the collection is accessible
+      const allCollections = await this.database?.collections();
+      console.log('📊 All collections after posts creation:', allCollections?.map(c => c.name));
+      
       if (this.replicator === undefined) {
         await this.setupReplicator();
       }
@@ -337,18 +347,10 @@ export class DatabaseService {
   async getPostCollection() {
     if (!this.database) throw new Error('Database not initialized');
     
-    try {
-      // Get the posts collection from social scope
-      const collection = await this.database.collection('posts', 'social');
-      this.postCollection = collection;
-      return collection;
-    } catch (error) {
-      console.log('⚠️ social.posts collection not found, creating it...');
-      // Create the collection if it doesn't exist
-      const collection = await this.database.collection('posts', 'social');
-      this.postCollection = collection;
-      return collection;
-    }
+    // Get or create the posts collection from social scope
+    const collection = await this.database.collection('posts', 'social');
+    this.postCollection = collection;
+    return collection;
   }
 
   /**
@@ -379,7 +381,7 @@ export class DatabaseService {
     const collections = await this.database.collections();
     console.log(`📊 Database opened. Found ${collections.length} collections:`, collections.map(c => c.name));
     
-    console.log('✅ Database setup complete - social.posts collection will be created when needed');
+    console.log('✅ Database setup complete - social.posts collection will be created during initialization');
   }
 
 
@@ -397,7 +399,7 @@ export class DatabaseService {
    */
   private async setupIndexes() {
     if (this.database !== undefined) {
-      console.log('✅ No specific indexes needed for default collection');
+      console.log('✅ No specific indexes needed for social.posts collection');
     }
   }
 
