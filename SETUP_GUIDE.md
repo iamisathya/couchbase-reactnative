@@ -56,6 +56,7 @@ This app fetches posts from JSON Placeholder API and stores them in Couchbase wi
 ## Technical Details
 
 - **Database**: Couchbase Lite for local storage
+- **Scope**: `social` scope with `posts` collection
 - **Sync**: Continuous replicator to Capella App Service
 - **API**: JSON Placeholder for sample posts
 - **UI**: React Native with Legend List for performance

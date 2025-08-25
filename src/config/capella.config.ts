@@ -24,8 +24,8 @@ export const CAPELLA_CONFIG = {
   SYNC: {
     continuous: true,
     acceptSelfSignedCerts: false,
-    // Collections to sync (will use default collection if others don't exist)
-    collections: ['_default'],
+    // Collections to sync (using social.posts collection)
+    collections: ['social.posts'],
   },
   
   // Network configuration

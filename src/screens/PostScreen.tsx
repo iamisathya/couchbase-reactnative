@@ -71,10 +71,10 @@ function PostScreen() {
       },
       {text: 'OK', style: 'destructive', onPress: async () => {
         // const result = await dbService.deletePosts(docId);    
-        const cllection = await dbService.getCachedPostCollection();
-        const doc = await cllection.getDocument(docId);
+        const collection = await dbService.getPostCollection();
+        const doc = await collection.getDocument(docId);
         if (doc) {          
-          await cllection.deleteDocument(doc);
+          await collection.deleteDocument(doc);
         }        
       }},
     ]);
