@@ -18,6 +18,7 @@ This app fetches posts from JSON Placeholder API and stores them in Couchbase wi
 ### 1. Home Screen
 - **Fetch Random Post**: Gets a random post from JSON Placeholder API
 - **Add to Couchbase**: Saves the post to local Couchbase database and automatically syncs to Capella
+- **Clear All Posts**: Removes all posts from device and cloud
 
 ### 2. List Screen
 - Shows all posts stored in the local database
@@ -40,9 +41,10 @@ This app fetches posts from JSON Placeholder API and stores them in Couchbase wi
 ## Usage
 
 1. **Fetch a Post**: Click "Fetch Random Post" on Home screen
-2. **Save to Couchbase**: Click "Add to Couchbase" to store and sync
+2. **Save to Couchbase**: Click "Add to Couchbase" to store and sync to Capella automatically
 3. **View Posts**: Go to List tab to see all stored posts
 4. **Edit/Delete**: Use the buttons on each post in the list
+5. **Clear All**: Use "Clear All Posts" to remove all posts from device and cloud
 
 ## Technical Details
 
