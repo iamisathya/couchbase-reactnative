@@ -2,10 +2,10 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
-import ProfileScreen from '../screens/ProfileScreen';
+import FeaturesScreen from '../screens/ProfileScreen';
 import PostScreen from '../screens/PostScreen';
 
-import { Home, List, User } from 'lucide-react-native';
+import { Home, List, Star } from 'lucide-react-native';
 import HomeScreen from '../screens/HomeScreen';
 import { createStackNavigator } from '@react-navigation/stack';
 import EditPostScreen from '../screens/EditPostScreen';
@@ -34,7 +34,7 @@ export default function MainNavigation() {
           } else if (route.name === 'List') {
             return <List />
           } 
-          return <User  />          
+          return <Star  />          
         },
         tabBarActiveTintColor: '#007aff',
         tabBarInactiveTintColor: 'gray',
@@ -42,7 +42,7 @@ export default function MainNavigation() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="List" component={PostStack} options={{headerShown: false}} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Features" component={FeaturesScreen} />
     </Tab.Navigator>
   );
 }

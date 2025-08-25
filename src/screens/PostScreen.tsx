@@ -136,19 +136,28 @@ function PostScreen() {
     const { body, id, title, docId } = item;
     
     return (
-      <View style={styles.itcontainer} key={index.toString()}>
-        <View style={styles.topContainer}>
-          <Text style={styles.title}>{title || 'No Title'}</Text>
-          <Text style={styles.userId}>Post ID: {id || 'No ID'}</Text>
-          <Text style={styles.body}>{body || 'No Content'}</Text>
-          <View style={styles.borderLine} />
+      <View style={styles.postCard} key={index.toString()}>
+        <View style={styles.postContent}>
+          <View style={styles.postHeader}>
+            <Text style={styles.postTitle}>{title || 'No Title'}</Text>
+            <Text style={styles.postId}>ID: {id || 'No ID'}</Text>
+          </View>
+          <Text style={styles.postBody}>{body || 'No Content'}</Text>
         </View>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.updateBtn} onPress={() => onPressEditPost(item)}>
-            <Text>Update</Text>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={styles.editButton} 
+            onPress={() => onPressEditPost(item)}
+          >
+            <Text style={styles.editButtonIcon}>✏️</Text>
+            <Text style={styles.editButtonText}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteBtn} onPress={() => onPressDelete(docId)}>
-            <Text style={styles.deleteText}>Delete</Text>
+          <TouchableOpacity 
+            style={styles.deleteButton} 
+            onPress={() => onPressDelete(docId)}
+          >
+            <Text style={styles.deleteButtonIcon}>🗑️</Text>
+            <Text style={styles.deleteButtonText}>Delete</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -159,12 +168,16 @@ function PostScreen() {
     <View style={styles.container}>
       {/* Header with Clear All button */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Posts ({allHotels.length})</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>📋 Stored Posts</Text>
+          <Text style={styles.headerSubtitle}>{allHotels.length} posts in database</Text>
+        </View>
         <TouchableOpacity 
           style={[styles.clearAllButton, { opacity: allHotels.length === 0 ? 0.5 : 1 }]} 
           onPress={onPressClearAll}
           disabled={allHotels.length === 0 || syncStatus.isSyncing}
         >
+          <Text style={styles.clearAllButtonIcon}>🗑️</Text>
           <Text style={styles.clearAllButtonText}>
             {syncStatus.isSyncing ? 'Clearing...' : 'Clear All'}
           </Text>
@@ -174,24 +187,35 @@ function PostScreen() {
       {/* Network Status */}
       {!isOnline && (
         <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>⚠️ Offline - Changes will sync when online</Text>
+          <Text style={styles.offlineIcon}>⚠️</Text>
+          <Text style={styles.offlineText}>Offline - Changes will sync when online</Text>
         </View>
       )}
 
-      <LegendList
-        data={allHotels}
-        renderItem={renderListItem}
-        recycleItems
-        keyExtractor={(item, _) => item.docId || item.id }
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#9Bd35A', '#689F38']}
-            progressBackgroundColor="#fff"
-          />
-        }
-      />
+      {allHotels.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateIcon}>📭</Text>
+          <Text style={styles.emptyStateTitle}>No Posts Yet</Text>
+          <Text style={styles.emptyStateSubtitle}>
+            Posts you add from the Home screen will appear here
+          </Text>
+        </View>
+      ) : (
+        <LegendList
+          data={allHotels}
+          renderItem={renderListItem}
+          recycleItems
+          keyExtractor={(item, _) => item.docId || item.id }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#007AFF', '#34C759']}
+              progressBackgroundColor="#fff"
+            />
+          }
+        />
+      )}
     </View>
   );
 }
@@ -199,27 +223,52 @@ function PostScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#f8f9fa',
+    paddingVertical: 16,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  headerLeft: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#666',
   },
   clearAllButton: {
     backgroundColor: '#FF3B30',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  clearAllButtonIcon: {
+    fontSize: 16,
+    marginRight: 6,
   },
   clearAllButtonText: {
     color: 'white',
@@ -229,58 +278,126 @@ const styles = StyleSheet.create({
   offlineBanner: {
     backgroundColor: '#FFF3CD',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#FFEAA7',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  offlineIcon: {
+    fontSize: 16,
+    marginRight: 8,
   },
   offlineText: {
     color: '#856404',
     fontSize: 14,
-    textAlign: 'center',
+    fontWeight: '500',
   },
-  itcontainer: {
-    backgroundColor: '#fff',
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyStateIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 8,
+  },
+  emptyStateSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  postCard: {
+    backgroundColor: 'white',
     marginVertical: 8,
-    marginHorizontal: 12,
-    borderRadius: 12,
+    marginHorizontal: 16,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
   },
-  title: {
+  postContent: {
+    padding: 20,
+  },
+  postHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  postTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    flex: 1,
+    marginRight: 12,
+  },
+  postId: {
+    fontSize: 12,
+    color: '#666',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  postBody: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 6,
+    lineHeight: 24,
     color: '#333',
   },
-  userId: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#888',
-    marginBottom: 8,
+  actionButtons: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
-  body: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#555',
-  },
-  borderLine: {
-    height: 1,
-    color: 'black',
-    width: '100%',
-  },
-  buttonContainer: {
+  editButton: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    height: 42,
     alignItems: 'center',
-    borderTopWidth: 2,
-    marginVertical: 12,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#f8f9fa',
+    borderRightWidth: 1,
+    borderRightColor: '#f0f0f0',
   },
-  topContainer: {
+  editButtonIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  deleteButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#f8f9fa',
+  },
+  deleteButtonIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF3B30',
+  },
     padding: 16,
   },
   verticalBorder: {
