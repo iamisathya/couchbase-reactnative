@@ -610,6 +610,12 @@ export class DatabaseService {
       await postCollection.save(doc);
       console.log(`✅ Post document ${docId} saved.`);
       
+      // Ensure replicator is running for live sync
+      if (this.replicator) {
+        await this.ensureReplicatorRunning();
+        console.log(`🔄 Post will be synced to Capella automatically`);
+      }
+      
       return docId;
     } catch (error) {
       console.error('❌ Failed to save post:', error);
@@ -661,5 +667,22 @@ export class DatabaseService {
       throw new Error('Collection not initialized. Call init() first.');
     }
     return this.postCollection;
+  }
+
+  /**
+   * Ensure replicator is running for live sync
+   */
+  private async ensureReplicatorRunning() {
+    try {
+      if (this.replicator) {
+        const status = this.replicator.status;
+        if (status && status.activity === 'STOPPED') {
+          console.log('🔄 Starting replicator for live sync...');
+          await this.replicator.start();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to ensure replicator is running:', error);
+    }
   }
 }

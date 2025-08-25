@@ -40,13 +40,21 @@ function HomeScreen() {
   };
 
   const onPressAddToDb = async () => {
-    const docId = await dbService.savePost(post);
-    if (docId) {
+    try {
+      const docId = await dbService.savePost(post);
+      if (docId) {
+        Snackbar.show({
+          text: 'Post added to Couchbase and syncing to Capella...',
+          duration: Snackbar.LENGTH_SHORT,
+        });
+        refetch();
+      }
+    } catch (error) {
+      console.error('Failed to save post:', error);
       Snackbar.show({
-        text: 'Post added successfully',
-        duration: Snackbar.LENGTH_SHORT,
+        text: 'Failed to save post',
+        duration: Snackbar.LENGTH_LONG,
       });
-      refetch();
     }
   };
 

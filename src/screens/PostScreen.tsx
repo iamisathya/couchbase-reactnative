@@ -34,16 +34,7 @@ function PostScreen() {
     const setup = async () => {
       const getHotels = async () => {
         const posts = await dbService.getPosts();
-        // Transform the data to ensure consistent structure
-        const mappedPosts = posts?.map(post => ({
-          docId: post.docId, 
-          post: {
-            id: post.id,
-            title: post.title,
-            body: post.body
-          }
-        })) || [];
-        setAllHotels(mappedPosts);
+        setAllHotels(posts || []);
       };
 
       await getHotels();
@@ -66,17 +57,8 @@ function PostScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     const posts = await dbService.getPosts();
-    // Transform the data to ensure consistent structure
-    const mappedPosts = posts?.map(post => ({
-      docId: post.docId, 
-      post: {
-        id: post.id,
-        title: post.title,
-        body: post.body
-      }
-    })) || [];
     setRefreshing(false);
-    setAllHotels(mappedPosts);
+    setAllHotels(posts || []);
   };
 
   const onPressDelete = async (docId: string) => {
@@ -98,7 +80,16 @@ function PostScreen() {
   }
 
   const onPressEditPost = (item) => {
-    navigation.navigate('EditPost', {item: item})
+    // Create the expected structure for EditPost screen
+    const editItem = {
+      post: {
+        id: item.id,
+        title: item.title,
+        body: item.body
+      },
+      docId: item.docId
+    };
+    navigation.navigate('EditPost', {item: editItem})
   }
 
   const onPressClearAll = async () => {
@@ -141,7 +132,8 @@ function PostScreen() {
   };
 
   const renderListItem = ({ index, item }) => {
-    const { post: { body, id, title } } = item;
+    // Handle the data structure from database query
+    const { body, id, title, docId } = item;
     
     return (
       <View style={styles.itcontainer} key={index.toString()}>
@@ -155,7 +147,7 @@ function PostScreen() {
           <TouchableOpacity style={styles.updateBtn} onPress={() => onPressEditPost(item)}>
             <Text>Update</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteBtn} onPress={() => onPressDelete(item.docId)}>
+          <TouchableOpacity style={styles.deleteBtn} onPress={() => onPressDelete(docId)}>
             <Text style={styles.deleteText}>Delete</Text>
           </TouchableOpacity>
         </View>
@@ -190,7 +182,7 @@ function PostScreen() {
         data={allHotels}
         renderItem={renderListItem}
         recycleItems
-        keyExtractor={(item, _) => item.docId }
+        keyExtractor={(item, _) => item.docId || item.id }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
