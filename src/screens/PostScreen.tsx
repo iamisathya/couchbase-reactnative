@@ -35,6 +35,10 @@ function PostScreen() {
     const setup = async () => {
       const getHotels = async () => {
         const posts = await dbService.getPosts();
+        console.log('📋 Fetched posts:', posts?.length || 0);
+        if (posts && posts.length > 0) {
+          console.log('📄 First post sample:', JSON.stringify(posts[0], null, 2));
+        }
         setAllHotels(posts || []);
       };
 
@@ -58,6 +62,7 @@ function PostScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     const posts = await dbService.getPosts();
+    console.log('🔄 Refreshed posts:', posts?.length || 0);
     setRefreshing(false);
     setAllHotels(posts || []);
   };
@@ -133,17 +138,28 @@ function PostScreen() {
   };
 
   const renderListItem = ({ index, item }) => {
+    // Debug: Log the item structure
+    console.log('📄 Post item data:', JSON.stringify(item, null, 2));
+    
     // Handle the data structure from database query
-    const { body, id, title, docId } = item;
+    // The query returns: { docId, id, userId, title, body, type }
+    const { body, id, title, docId, userId } = item;
     
     return (
       <View style={styles.postCard} key={index.toString()}>
         <View style={styles.postContent}>
           <View style={styles.postHeader}>
-            <Text style={styles.postTitle}>{title || 'No Title'}</Text>
-            <Text style={styles.postId}>ID: {id || 'No ID'}</Text>
+            <Text style={styles.postTitle} numberOfLines={2}>
+              {title || 'No Title'}
+            </Text>
+            <View style={styles.postMeta}>
+              <Text style={styles.postId}>ID: {id || 'No ID'}</Text>
+              <Text style={styles.postUserId}>User: {userId || 'Unknown'}</Text>
+            </View>
           </View>
-          <Text style={styles.postBody}>{body || 'No Content'}</Text>
+          <Text style={styles.postBody} numberOfLines={3}>
+            {body || 'No Content'}
+          </Text>
         </View>
         <View style={styles.actionButtons}>
           <TouchableOpacity 
@@ -322,64 +338,85 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     marginVertical: 8,
     marginHorizontal: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   postContent: {
-    padding: 20,
+    padding: 24,
   },
   postHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   postTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1a1a1a',
-    flex: 1,
-    marginRight: 12,
+    marginBottom: 8,
+    lineHeight: 26,
+  },
+  postMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   postId: {
     fontSize: 12,
     color: '#666',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    fontWeight: '500',
+  },
+  postUserId: {
+    fontSize: 12,
+    color: '#007AFF',
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    fontWeight: '500',
   },
   postBody: {
     fontSize: 16,
     lineHeight: 24,
     color: '#333',
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
   },
   actionButtons: {
     flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
+    backgroundColor: '#f8f9fa',
   },
   editButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#f8f9fa',
+    paddingVertical: 16,
+    backgroundColor: 'transparent',
     borderRightWidth: 1,
-    borderRightColor: '#f0f0f0',
+    borderRightColor: '#e0e0e0',
   },
   editButtonIcon: {
-    fontSize: 16,
-    marginRight: 6,
+    fontSize: 18,
+    marginRight: 8,
   },
   editButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#007AFF',
   },
@@ -388,15 +425,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#f8f9fa',
+    paddingVertical: 16,
+    backgroundColor: 'transparent',
   },
   deleteButtonIcon: {
-    fontSize: 16,
-    marginRight: 6,
+    fontSize: 18,
+    marginRight: 8,
   },
   deleteButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#FF3B30',
   },
