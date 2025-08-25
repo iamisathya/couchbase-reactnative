@@ -15,7 +15,8 @@ class NetworkService {
   };
 
   constructor() {
-    this.initializeNetworkMonitoring();
+    // Network monitoring disabled
+    // this.initializeNetworkMonitoring();
   }
 
   /**
@@ -23,10 +24,10 @@ class NetworkService {
    */
   private initializeNetworkMonitoring() {
     // Get initial network state
-    NetInfo.fetch().then(this.handleNetworkChange);
+    // NetInfo.fetch().then(this.handleNetworkChange);
 
     // Listen for network changes
-    NetInfo.addEventListener(this.handleNetworkChange);
+    // NetInfo.addEventListener(this.handleNetworkChange);
   }
 
   /**
@@ -83,17 +84,16 @@ class NetworkService {
    * Check if currently online
    */
   public isOnline(): boolean {
-    // If we have a connection, consider it online
-    // isInternetReachable can be unreliable on some devices
-    return this.currentStatus.isConnected;
+    // Network monitoring disabled - always return true
+    return true;
   }
 
   /**
    * Check if internet is reachable (more strict check)
    */
   public isInternetReachable(): boolean {
-    return this.currentStatus.isConnected && 
-           (this.currentStatus.isInternetReachable === null || this.currentStatus.isInternetReachable);
+    // Network monitoring disabled - always return true
+    return true;
   }
 
   /**
@@ -174,7 +174,8 @@ class NetworkService {
    * Clean up network monitoring
    */
   public cleanup() {
-    NetInfo.removeEventListener(this.handleNetworkChange);
+    // Network monitoring disabled
+    // NetInfo.removeEventListener(this.handleNetworkChange);
     this.listeners = [];
   }
 }
