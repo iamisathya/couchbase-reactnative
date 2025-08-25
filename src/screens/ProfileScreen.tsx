@@ -95,10 +95,8 @@ export default function FeaturesScreen() {
 
           {/* Made with Love */}
           <View style={styles.loveContainer}>
-            <Text style={styles.loveIcon}>💖</Text>
-            <Text style={styles.loveText}>Made with love by</Text>
-            <Text style={styles.authorName}>Sathya a.k.a insanetechie</Text>
-            <Text style={styles.loveSubtext}>Building amazing mobile experiences</Text>
+            <Text style={styles.loveText}>Made with 💖 by</Text>
+            <Text style={styles.authorName}>Sathya</Text>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -211,9 +209,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loveContainer: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 32,
     alignItems: 'center',
     marginBottom: 32,
     shadowColor: '#000',

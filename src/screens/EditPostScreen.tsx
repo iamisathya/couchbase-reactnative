@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { BackHandler, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import Snackbar from 'react-native-snackbar';
@@ -14,6 +14,7 @@ import Snackbar from 'react-native-snackbar';
 import { useDatabase } from '../../DatabaseProvider';
 import CBTextInput from '../components/CBTextInput/CBTextInput';
 import CBButtonPrimary from '../components/CBButtonPrimary/CBButtonPrimary';
+import { ArrowLeftIcon, Backpack } from 'lucide-react-native';
 
 function EditPostScreen({ route }) {
   const {
@@ -64,27 +65,35 @@ function EditPostScreen({ route }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView>
-        <View style={styles.screenContainer}>
-          <CBTextInput
-            label="Title"
-            value={title}
-            placeholder="Title"
-            onChangeText={setTitle}
-            error={titleError}
-            multiline
-          />
-          <CBTextInput
-            label="Body"
-            value={body}
-            placeholder="Bosy"
-            onChangeText={setBody}
-            error={bodyError}
-            multiline
-          />
-          <CBButtonPrimary title="Update" onPress={onPressUpdate} />
-        </View>
-      </ScrollView>
+      <SafeAreaView style={styles.container}>
+        <ScrollView>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <ArrowLeftIcon size={24} color="black" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Edit Post</Text>
+          </View>
+          <View style={styles.screenContainer}>
+            <CBTextInput
+              label="Title"
+              value={title}
+              placeholder="Title"
+              onChangeText={setTitle}
+              error={titleError}
+              multiline
+            />
+            <CBTextInput
+              label="Body"
+              value={body}
+              placeholder="Body"
+              onChangeText={setBody}
+              error={bodyError}
+              multiline
+            />
+            <CBButtonPrimary title="Update" onPress={onPressUpdate} />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     </View>
   );
 }
@@ -96,6 +105,19 @@ const styles = StyleSheet.create({
   screenContainer: {
     paddingHorizontal: 12,
     paddingTop: 12,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    gap: 12,
+    marginTop: 12,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });
 
