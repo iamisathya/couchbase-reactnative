@@ -13,7 +13,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { useFetchRandomPost } from '../hooks/useRandomPost';
 import { useDatabase } from '../../DatabaseProvider';
@@ -57,8 +56,6 @@ function HomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.container}>
-        <SyncStatusBar showDetails={true} />
-        
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           <View style={styles.headerContainer}>
             <Text style={styles.headerTitle}>📱 Couchbase Post Manager</Text>
@@ -110,7 +107,6 @@ function HomeScreen() {
                 <ActivityIndicator color="white" size="small" />
               ) : (
                 <View style={styles.buttonContent}>
-                  <Text style={styles.buttonIcon}>🎲</Text>
                   <Text style={styles.buttonText}>Fetch Random Post</Text>
                 </View>
               )}
@@ -122,7 +118,6 @@ function HomeScreen() {
               disabled={!post || loading}
             >
               <View style={styles.buttonContent}>
-                <Text style={styles.buttonIcon}>💾</Text>
                 <Text style={styles.buttonText}>Add to Couchbase</Text>
               </View>
             </TouchableOpacity>
@@ -143,6 +138,7 @@ function HomeScreen() {
               </View>
             )}
           </View>
+          <SyncStatusBar showDetails={true} />
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -211,8 +207,8 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 14,
-    fontWeight: '600',
     color: '#666',
+    fontWeight: 'bold',
     marginBottom: 4,
   },
   fieldValue: {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
 
 export default function FeaturesScreen() {
   const features = [
@@ -47,59 +47,61 @@ export default function FeaturesScreen() {
 
   return (
     <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>✨ Features</Text>
-          <Text style={styles.headerSubtitle}>Everything this app can do</Text>
-        </View>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>✨ Features</Text>
+            <Text style={styles.headerSubtitle}>Everything this app can do</Text>
+          </View>
 
-        {/* Features List */}
-        <View style={styles.featuresContainer}>
-          {features.map((feature, index) => (
-            <View key={index} style={styles.featureCard}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.iconText}>{feature.icon}</Text>
+          {/* Features List */}
+          <View style={styles.featuresContainer}>
+            {features.map((feature, index) => (
+              <View key={index} style={styles.featureCard}>
+                <View style={styles.featureIcon}>
+                  <Text style={styles.iconText}>{feature.icon}</Text>
+                </View>
+                <View style={styles.featureContent}>
+                  <Text style={styles.featureTitle}>{feature.title}</Text>
+                  <Text style={styles.featureDescription}>{feature.description}</Text>
+                </View>
               </View>
-              <View style={styles.featureContent}>
-                <Text style={styles.featureTitle}>{feature.title}</Text>
-                <Text style={styles.featureDescription}>{feature.description}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
 
-        {/* Tech Stack */}
-        <View style={styles.techStackContainer}>
-          <Text style={styles.sectionTitle}>🛠️ Built With</Text>
-          <View style={styles.techStack}>
-            <View style={styles.techItem}>
-              <Text style={styles.techIcon}>⚛️</Text>
-              <Text style={styles.techName}>React Native</Text>
-            </View>
-            <View style={styles.techItem}>
-              <Text style={styles.techIcon}>🗄️</Text>
-              <Text style={styles.techName}>Couchbase Lite</Text>
-            </View>
-            <View style={styles.techItem}>
-              <Text style={styles.techIcon}>☁️</Text>
-              <Text style={styles.techName}>Couchbase Capella</Text>
-            </View>
-            <View style={styles.techItem}>
-              <Text style={styles.techIcon}>🔄</Text>
-              <Text style={styles.techName}>Sync Gateway</Text>
+          {/* Tech Stack */}
+          <View style={styles.techStackContainer}>
+            <Text style={styles.sectionTitle}>🛠️ Built With</Text>
+            <View style={styles.techStack}>
+              <View style={styles.techItem}>
+                <Text style={styles.techIcon}>⚛️</Text>
+                <Text style={styles.techName}>React Native</Text>
+              </View>
+              <View style={styles.techItem}>
+                <Text style={styles.techIcon}>🗄️</Text>
+                <Text style={styles.techName}>Couchbase Lite</Text>
+              </View>
+              <View style={styles.techItem}>
+                <Text style={styles.techIcon}>☁️</Text>
+                <Text style={styles.techName}>Couchbase Capella</Text>
+              </View>
+              <View style={styles.techItem}>
+                <Text style={styles.techIcon}>🔄</Text>
+                <Text style={styles.techName}>Sync Gateway</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Made with Love */}
-        <View style={styles.loveContainer}>
-          <Text style={styles.loveIcon}>💖</Text>
-          <Text style={styles.loveText}>Made with love by</Text>
-          <Text style={styles.authorName}>Sathya a.k.a insanetechie</Text>
-          <Text style={styles.loveSubtext}>Building amazing mobile experiences</Text>
-        </View>
-      </ScrollView>
+          {/* Made with Love */}
+          <View style={styles.loveContainer}>
+            <Text style={styles.loveIcon}>💖</Text>
+            <Text style={styles.loveText}>Made with love by</Text>
+            <Text style={styles.authorName}>Sathya a.k.a insanetechie</Text>
+            <Text style={styles.loveSubtext}>Building amazing mobile experiences</Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     </View>
   );
 }

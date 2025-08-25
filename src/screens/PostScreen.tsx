@@ -13,6 +13,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { useDatabase } from '../../DatabaseProvider';
 import { LegendList } from '@legendapp/list';
@@ -167,55 +168,57 @@ function PostScreen() {
   return (
     <View style={styles.container}>
       {/* Header with Clear All button */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>📋 Stored Posts</Text>
-          <Text style={styles.headerSubtitle}>{allHotels.length} posts in database</Text>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerTitle}>📋 Stored Posts</Text>
+            <Text style={styles.headerSubtitle}>{allHotels.length} posts in database</Text>
+          </View>
+          <TouchableOpacity 
+            style={[styles.clearAllButton, { opacity: allHotels.length === 0 ? 0.5 : 1 }]} 
+            onPress={onPressClearAll}
+            disabled={allHotels.length === 0 || syncStatus.isSyncing}
+          >
+            <Text style={styles.clearAllButtonIcon}>🗑️</Text>
+            <Text style={styles.clearAllButtonText}>
+              {syncStatus.isSyncing ? 'Clearing...' : 'Clear All'}
+            </Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={[styles.clearAllButton, { opacity: allHotels.length === 0 ? 0.5 : 1 }]} 
-          onPress={onPressClearAll}
-          disabled={allHotels.length === 0 || syncStatus.isSyncing}
-        >
-          <Text style={styles.clearAllButtonIcon}>🗑️</Text>
-          <Text style={styles.clearAllButtonText}>
-            {syncStatus.isSyncing ? 'Clearing...' : 'Clear All'}
-          </Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* Network Status */}
-      {!isOnline && (
-        <View style={styles.offlineBanner}>
-          <Text style={styles.offlineIcon}>⚠️</Text>
-          <Text style={styles.offlineText}>Offline - Changes will sync when online</Text>
-        </View>
-      )}
+        {/* Network Status */}
+        {!isOnline && (
+          <View style={styles.offlineBanner}>
+            <Text style={styles.offlineIcon}>⚠️</Text>
+            <Text style={styles.offlineText}>Offline - Changes will sync when online</Text>
+          </View>
+        )}
 
-      {allHotels.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateIcon}>📭</Text>
-          <Text style={styles.emptyStateTitle}>No Posts Yet</Text>
-          <Text style={styles.emptyStateSubtitle}>
-            Posts you add from the Home screen will appear here
-          </Text>
-        </View>
-      ) : (
-        <LegendList
-          data={allHotels}
-          renderItem={renderListItem}
-          recycleItems
-          keyExtractor={(item, _) => item.docId || item.id }
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#007AFF', '#34C759']}
-              progressBackgroundColor="#fff"
-            />
-          }
-        />
-      )}
+        {allHotels.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateIcon}>📭</Text>
+            <Text style={styles.emptyStateTitle}>No Posts Yet</Text>
+            <Text style={styles.emptyStateSubtitle}>
+              Posts you add from the Home screen will appear here
+            </Text>
+          </View>
+        ) : (
+          <LegendList
+            data={allHotels}
+            renderItem={renderListItem}
+            recycleItems
+            keyExtractor={(item, _) => item.docId || item.id }
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#007AFF', '#34C759']}
+                progressBackgroundColor="#fff"
+              />
+            }
+          />
+        )}
+      </SafeAreaView>
     </View>
   );
 }
@@ -231,7 +234,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
     shadowColor: '#000',
@@ -398,26 +400,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FF3B30',
   },
-    padding: 16,
-  },
-  verticalBorder: {
-    width: 2,
-    height: '100%',
-  },
-  deleteText: {
-    color: 'red',
-    fontSize: 16,
-    fontWeight:  'semibold'
-  },
-  updateBtn: {
-    flex: 1,
-    alignItems: 'center'
-  },
-   deleteBtn: {
-    flex: 1,
-    borderLeftWidth: 2,
-    alignItems: 'center'
-  }
 });
 
 export default PostScreen;
