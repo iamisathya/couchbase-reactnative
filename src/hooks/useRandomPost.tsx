@@ -8,6 +8,7 @@ export const useFetchRandomPost = () => {
 
   const fetchPost = async () => {
       setLoading(true);
+      setError('');
       try {
         const data = await AxiosService.getRandomPost();
         setPost(data);
