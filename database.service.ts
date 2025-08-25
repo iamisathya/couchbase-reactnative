@@ -170,9 +170,9 @@ export class DatabaseService {
   private async getCollections(): Promise<Collection[]> {
     const collections: Collection[] = [];
     
-    // Get social.posts collection for posts
+    // Create or get social.posts collection for posts
     try {
-      const postsCollection = await this.database?.collection('posts', 'social');
+      const postsCollection = await this.database?.createCollection('posts', 'social');
       if (postsCollection) {
         collections.push(postsCollection);
         console.log('✅ Using social.posts collection for sync');
@@ -180,7 +180,7 @@ export class DatabaseService {
         console.error('❌ social.posts collection is null');
       }
     } catch (error) {
-      console.error('❌ Failed to get social.posts collection:', error);
+      console.error('❌ Failed to create/get social.posts collection:', error);
     }
     
     console.log(`📦 Total collections for sync: ${collections.length}:`, collections.map(c => c.name));
@@ -326,7 +326,7 @@ export class DatabaseService {
       
       // Ensure the posts collection exists before setting up replicator
       const postsCollection = await this.getPostCollection();
-      console.log('✅ Posts collection ensured:', postsCollection.name);
+      console.log('✅ Posts collection created/ensured:', postsCollection.name);
       
       // Verify the collection is accessible
       const allCollections = await this.database?.collections();
@@ -347,8 +347,8 @@ export class DatabaseService {
   async getPostCollection() {
     if (!this.database) throw new Error('Database not initialized');
     
-    // Get or create the posts collection from social scope
-    const collection = await this.database.collection('posts', 'social');
+    // Create or get the posts collection from social scope
+    const collection = await this.database.createCollection('posts', 'social');
     this.postCollection = collection;
     return collection;
   }
@@ -389,10 +389,9 @@ export class DatabaseService {
 
 
   /**
-   * Sets up the indexes for the `hotel` and `landmark` collections in the database.
+   * Sets up the indexes for the database.
    *
-   * This function calls the `setupHotelIndexes` and `setupLandmarkIndexes` methods
-   * to create the necessary indexes for the `hotel` and `landmark` collections.
+   * Currently no specific indexes are needed for the social.posts collection.
    *
    * @private
    * @throws Will throw an error if the database is not initialized.
