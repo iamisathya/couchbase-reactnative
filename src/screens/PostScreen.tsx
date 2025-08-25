@@ -34,8 +34,16 @@ function PostScreen() {
     const setup = async () => {
       const getHotels = async () => {
         const posts = await dbService.getPosts();
-        // let maps = posts?.map(post => ({docId: post.docId, ...post}));
-        setAllHotels(posts);
+        // Transform the data to ensure consistent structure
+        const mappedPosts = posts?.map(post => ({
+          docId: post.docId, 
+          post: {
+            id: post.id,
+            title: post.title,
+            body: post.body
+          }
+        })) || [];
+        setAllHotels(mappedPosts);
       };
 
       await getHotels();
@@ -57,9 +65,18 @@ function PostScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    const posts = await dbService.getPosts();    
+    const posts = await dbService.getPosts();
+    // Transform the data to ensure consistent structure
+    const mappedPosts = posts?.map(post => ({
+      docId: post.docId, 
+      post: {
+        id: post.id,
+        title: post.title,
+        body: post.body
+      }
+    })) || [];
     setRefreshing(false);
-    setAllHotels(posts);
+    setAllHotels(mappedPosts);
   };
 
   const onPressDelete = async (docId: string) => {
@@ -124,13 +141,14 @@ function PostScreen() {
   };
 
   const renderListItem = ({ index, item }) => {
-    const { post: { body, id, title} } = item
+    const { post: { body, id, title } } = item;
+    
     return (
       <View style={styles.itcontainer} key={index.toString()}>
         <View style={styles.topContainer}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.userId}>Post ID: {id}</Text>
-          <Text style={styles.body}>{body}</Text>
+          <Text style={styles.title}>{title || 'No Title'}</Text>
+          <Text style={styles.userId}>Post ID: {id || 'No ID'}</Text>
+          <Text style={styles.body}>{body || 'No Content'}</Text>
           <View style={styles.borderLine} />
         </View>
         <View style={styles.buttonContainer}>
