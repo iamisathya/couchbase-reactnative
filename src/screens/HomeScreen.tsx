@@ -109,10 +109,10 @@ function HomeScreen() {
               {loading ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <>
+                <View style={styles.buttonContent}>
                   <Text style={styles.buttonIcon}>🎲</Text>
                   <Text style={styles.buttonText}>Fetch Random Post</Text>
-                </>
+                </View>
               )}
             </TouchableOpacity>
             
@@ -121,8 +121,10 @@ function HomeScreen() {
               onPress={onPressAddToDb}
               disabled={!post || loading}
             >
-              <Text style={styles.buttonIcon}>💾</Text>
-              <Text style={styles.buttonText}>Add to Couchbase</Text>
+              <View style={styles.buttonContent}>
+                <Text style={styles.buttonIcon}>💾</Text>
+                <Text style={styles.buttonText}>Add to Couchbase</Text>
+              </View>
             </TouchableOpacity>
           </View>
           
@@ -248,7 +250,6 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
     marginBottom: 24,
   },
   button: {
@@ -258,18 +259,22 @@ const styles = StyleSheet.create({
     height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginHorizontal: 6,
   },
   fetchButton: {
     backgroundColor: '#6366f1',
   },
   addButton: {
     backgroundColor: '#10b981',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   buttonIcon: {
     fontSize: 18,
