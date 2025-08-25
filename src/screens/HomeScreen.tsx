@@ -12,6 +12,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useFetchRandomPost } from '../hooks/useRandomPost';
 import { useDatabase } from '../../DatabaseProvider';
@@ -24,15 +25,7 @@ function HomeScreen() {
   const { loading, post, error, refetch } = useFetchRandomPost();
   const { 
     syncStatus, 
-    networkStatus, 
-    isOnline, 
-    fetchFromJSONPlaceholder, 
-    syncFromCapella,
-    syncToCloud, 
-    manualSync,
-    forceSyncDeletions,
-    fetchAndSyncToCapella,
-    clearAllPosts
+    isOnline
   } = useSync();
 
   const onPressFetch = () => {
@@ -40,283 +33,113 @@ function HomeScreen() {
   };
 
   const onPressAddToDb = async () => {
-    const docId = await dbService.savePost(post);
-    if (docId) {
-      Snackbar.show({
-        text: 'Post added successfully',
-        duration: Snackbar.LENGTH_SHORT,
-      });
-      refetch();
-    }
-  };
-
-  const onPressFetchFromJSONPlaceholder = async () => {
     try {
-      await fetchFromJSONPlaceholder();
-      Snackbar.show({
-        text: 'Fetched posts from JSONPlaceholder',
-        duration: Snackbar.LENGTH_SHORT,
-      });
+      const docId = await dbService.savePost(post);
+      if (docId) {
+        Snackbar.show({
+          text: 'Post added to Couchbase and syncing to Capella...',
+          duration: Snackbar.LENGTH_SHORT,
+        });
+        refetch();
+      }
     } catch (error) {
+      console.error('Failed to save post:', error);
       Snackbar.show({
-        text: 'Failed to fetch from JSONPlaceholder',
+        text: 'Failed to save post',
         duration: Snackbar.LENGTH_LONG,
       });
     }
   };
 
-  const onPressSyncFromCapella = async () => {
-    try {
-      await syncFromCapella();
-      Snackbar.show({
-        text: 'Synced from Capella successfully',
-        duration: Snackbar.LENGTH_SHORT,
-      });
-    } catch (error) {
-      Snackbar.show({
-        text: 'Failed to sync from Capella',
-        duration: Snackbar.LENGTH_LONG,
-      });
-    }
-  };
 
-  const onPressSyncToCloud = async () => {
-    try {
-      await syncToCloud();
-      Snackbar.show({
-        text: 'Synced to cloud successfully',
-        duration: Snackbar.LENGTH_SHORT,
-      });
-    } catch (error) {
-      Snackbar.show({
-        text: 'Failed to sync to cloud',
-        duration: Snackbar.LENGTH_LONG,
-      });
-    }
-  };
-
-  const onPressManualSync = async () => {
-    try {
-      await manualSync();
-      Snackbar.show({
-        text: 'Manual sync completed',
-        duration: Snackbar.LENGTH_SHORT,
-      });
-    } catch (error) {
-      Snackbar.show({
-        text: 'Manual sync failed',
-        duration: Snackbar.LENGTH_LONG,
-      });
-    }
-  };
-
-  const onPressFetchAndSyncToCapella = async () => {
-    try {
-      await fetchAndSyncToCapella();
-      Snackbar.show({
-        text: 'Fetched and synced to Capella',
-        duration: Snackbar.LENGTH_SHORT,
-      });
-    } catch (error) {
-      Snackbar.show({
-        text: 'Failed to fetch and sync to Capella',
-        duration: Snackbar.LENGTH_LONG,
-      });
-    }
-  };
-
-  const onPressForceSyncDeletions = async () => {
-    try {
-      await forceSyncDeletions();
-      Snackbar.show({
-        text: 'Deletions synced to cloud',
-        duration: Snackbar.LENGTH_SHORT,
-      });
-    } catch (error) {
-      Snackbar.show({
-        text: 'Failed to sync deletions',
-        duration: Snackbar.LENGTH_LONG,
-      });
-    }
-  };
-
-  const onPressDeletePost = async () => {
-    if (!post?.id) {
-      Snackbar.show({
-        text: 'No post to delete',
-        duration: Snackbar.LENGTH_SHORT,
-      });
-      return;
-    }
-
-    try {
-      await dbService.deletePostById(post.id.toString());
-      Snackbar.show({
-        text: 'Post deleted locally',
-        duration: Snackbar.LENGTH_SHORT,
-      });
-      refetch(); // Get a new post
-    } catch (error) {
-      Snackbar.show({
-        text: 'Failed to delete post',
-        duration: Snackbar.LENGTH_LONG,
-      });
-    }
-  };
-
-  const onPressClearAllPosts = async () => {
-    Alert.alert(
-      'Clear All Posts',
-      'Are you sure you want to delete all posts from device and cloud? This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const deletedCount = await clearAllPosts();
-              Snackbar.show({
-                text: `Cleared ${deletedCount} posts from device and cloud`,
-                duration: Snackbar.LENGTH_LONG,
-              });
-            } catch (error) {
-              Snackbar.show({
-                text: 'Failed to clear all posts',
-                duration: Snackbar.LENGTH_LONG,
-              });
-            }
-          },
-        },
-      ]
-    );
-  };
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.container}>
-        <SyncStatusBar showDetails={true} />
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <View style={styles.headerContainer}>
+            <Text style={styles.headerTitle}>📱 Couchbase Post Manager</Text>
+            <Text style={styles.headerSubtitle}>Fetch, store, and sync posts with Capella</Text>
+          </View>
 
-        <View style={styles.postContainer}>
-          <Text style={styles.text}>{post?.id}</Text>
-          <Text style={styles.text}>{post?.userId}</Text>
-          <Text style={styles.text}>{post?.title}</Text>
-          <Text style={styles.text}>{post?.body}</Text>
-        </View>
-        {error && <Text>{error}</Text>}
-        
-        <TouchableOpacity style={styles.button} onPress={onPressFetch}>
-          {loading ? (
-            <ActivityIndicator />
-          ) : (
-            <Text style={styles.buttonText}>Fetch</Text>
+          <View style={styles.postContainer}>
+            <View style={styles.postHeader}>
+              <Text style={styles.postTitle}>📄 Current Post</Text>
+              {post?.id && <Text style={styles.postId}>ID: {post.id}</Text>}
+            </View>
+            
+            {post ? (
+              <>
+                <View style={styles.postField}>
+                  <Text style={styles.fieldLabel}>👤 User ID</Text>
+                  <Text style={styles.fieldValue}>{post.userId}</Text>
+                </View>
+                <View style={styles.postField}>
+                  <Text style={styles.fieldLabel}>📝 Title</Text>
+                  <Text style={styles.fieldValue}>{post.title}</Text>
+                </View>
+                <View style={styles.postField}>
+                  <Text style={styles.fieldLabel}>📄 Content</Text>
+                  <Text style={styles.fieldValue}>{post.body}</Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No post loaded</Text>
+                <Text style={styles.emptyStateSubtext}>Tap "Fetch Random Post" to get started</Text>
+              </View>
+            )}
+          </View>
+          
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>⚠️ {error}</Text>
+            </View>
           )}
-        </TouchableOpacity>
-        
-        <View style={styles.spacer} />
-        
-        <TouchableOpacity style={styles.button} onPress={onPressAddToDb}>
-          <Text style={styles.buttonText}>Add to couchbase</Text>
-        </TouchableOpacity>
-        
-        <View style={styles.spacer} />
-        
-        {/* Data Source Buttons */}
-        <TouchableOpacity 
-          style={[styles.button, styles.fetchButton]} 
-          onPress={onPressFetchFromJSONPlaceholder}
-          disabled={syncStatus.isSyncing || !isOnline}
-        >
-          <Text style={styles.buttonText}>
-            {syncStatus.isSyncing ? 'Fetching...' : 'Fetch from JSONPlaceholder'}
-          </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.spacer} />
-        
-        <TouchableOpacity 
-          style={[styles.button, styles.fetchButton]} 
-          onPress={onPressFetchAndSyncToCapella}
-          disabled={syncStatus.isSyncing || !isOnline}
-        >
-          <Text style={styles.buttonText}>
-            {syncStatus.isSyncing ? 'Processing...' : 'Fetch & Sync to Capella'}
-          </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.spacer} />
-        
-        {/* Capella Sync Buttons */}
-        <TouchableOpacity 
-          style={[styles.button, styles.syncButton]} 
-          onPress={onPressSyncFromCapella}
-          disabled={syncStatus.isSyncing || !isOnline}
-        >
-          <Text style={styles.buttonText}>
-            {syncStatus.isSyncing ? 'Syncing...' : 'Sync from Capella'}
-          </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.spacer} />
-        
-        <TouchableOpacity 
-          style={[styles.button, styles.syncButton]} 
-          onPress={onPressSyncToCloud}
-          disabled={syncStatus.isSyncing || !isOnline}
-        >
-          <Text style={styles.buttonText}>
-            {syncStatus.isSyncing ? 'Syncing...' : 'Sync to Capella'}
-          </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.spacer} />
-        
-        <TouchableOpacity 
-          style={[styles.button, styles.syncButton]} 
-          onPress={onPressManualSync}
-          disabled={syncStatus.isSyncing || !isOnline}
-        >
-          <Text style={styles.buttonText}>
-            {syncStatus.isSyncing ? 'Syncing...' : 'Manual Sync'}
-          </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.spacer} />
-        
-        {/* Deletion Controls */}
-        <TouchableOpacity 
-          style={[styles.button, styles.deleteButton]} 
-          onPress={onPressDeletePost}
-        >
-          <Text style={styles.buttonText}>Delete Current Post</Text>
-        </TouchableOpacity>
-        
-        <View style={styles.spacer} />
-        
-        <TouchableOpacity 
-          style={[styles.button, styles.deleteButton]} 
-          onPress={onPressForceSyncDeletions}
-          disabled={syncStatus.isSyncing || !isOnline}
-        >
-          <Text style={styles.buttonText}>
-            {syncStatus.isSyncing ? 'Syncing...' : 'Force Sync Deletions'}
-          </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.spacer} />
-        
-        <TouchableOpacity 
-          style={[styles.button, styles.clearAllButton]} 
-          onPress={onPressClearAllPosts}
-          disabled={syncStatus.isSyncing}
-        >
-          <Text style={styles.buttonText}>
-            {syncStatus.isSyncing ? 'Clearing...' : 'Clear All Posts'}
-          </Text>
-        </TouchableOpacity>
+          
+          <View style={styles.buttonRow}>
+            <TouchableOpacity 
+              style={[styles.button, styles.fetchButton]} 
+              onPress={onPressFetch}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <View style={styles.buttonContent}>
+                  <Text style={styles.buttonText}>Fetch Random Post</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.button, styles.addButton]} 
+              onPress={onPressAddToDb}
+              disabled={!post || loading}
+            >
+              <View style={styles.buttonContent}>
+                <Text style={styles.buttonText}>Add to Couchbase</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.statusContainer}>
+            <View style={[styles.statusIndicator, { backgroundColor: isOnline ? '#34C759' : '#FF3B30' }]}>
+              <Text style={styles.statusIcon}>{isOnline ? '🟢' : '🔴'}</Text>
+              <Text style={styles.statusText}>
+                {isOnline ? 'Online - Syncing with Capella' : 'Offline - Changes will sync when online'}
+              </Text>
+            </View>
+            
+            {syncStatus.isSyncing && (
+              <View style={styles.syncIndicator}>
+                <ActivityIndicator color="#007AFF" size="small" />
+                <Text style={styles.syncText}>Syncing with Capella...</Text>
+              </View>
+            )}
+          </View>
+          <SyncStatusBar showDetails={true} />
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -325,63 +148,178 @@ function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 12,
+    backgroundColor: '#f8f9fa',
   },
-  StatusBarText: {
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  headerContainer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  headerTitle: {
     fontSize: 24,
-    textAlign: 'center',
     fontWeight: 'bold',
-    color: 'red',
+    color: '#1a1a1a',
+    marginBottom: 8,
   },
-  spacer: {
-    height: 24,
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
   postContainer: {
-    borderWidth: 1,
-    borderRadius: 9,
-    marginVertical: 24,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  text: {
+  postHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  postTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  postId: {
+    fontSize: 14,
+    color: '#666',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  postField: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  fieldValue: {
     fontSize: 16,
-    paddingBottom: 9,
-    paddingLeft: 9,
+    color: '#1a1a1a',
+    lineHeight: 22,
   },
-  textInput: {
-    borderWidth: 2,
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
+  errorContainer: {
+    backgroundColor: '#fff5f5',
+    borderWidth: 1,
+    borderColor: '#fed7d7',
     borderRadius: 12,
-    height: 54,
-    paddingHorizontal: 12,
-    marginBottom: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#e53e3e',
+    textAlign: 'center',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    marginBottom: 24,
   },
   button: {
-    backgroundColor: 'black',
-    borderWidth: 2,
-    borderRadius: 9,
-    height: 54,
+    flex: 1,
+    backgroundColor: '#007AFF',
+    borderRadius: 12,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  syncButton: {
-    backgroundColor: '#007AFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginHorizontal: 6,
   },
   fetchButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: '#6366f1',
   },
-  deleteButton: {
-    backgroundColor: '#FF3B30',
+  addButton: {
+    backgroundColor: '#10b981',
   },
-  clearAllButton: {
-    backgroundColor: '#8E44AD',
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  buttonIcon: {
+    fontSize: 18,
+    marginRight: 8,
   },
   buttonText: {
     fontSize: 16,
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
-  headline: {
-    paddingTop: 24,
-    fontSize: 24,
-    fontWeight: 'bold',
+  statusContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  statusIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    color: 'white',
+    fontWeight: '500',
+    flex: 1,
+  },
+  syncIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  syncText: {
+    fontSize: 14,
+    color: '#007AFF',
+    marginLeft: 8,
+    fontWeight: '500',
   },
 });
 

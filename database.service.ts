@@ -12,6 +12,7 @@ import {
   MutableDocument,
   Replicator,
   ReplicatorConfiguration,
+  ReplicatorType,
   URLEndpoint,
   ValueIndexItem,
   ReplicatorStatus,
@@ -170,11 +171,17 @@ export class DatabaseService {
   private async getCollections(): Promise<Collection[]> {
     const collections: Collection[] = [];
     
-    // Only use the default collection to avoid scope conflicts
-    const defaultCollection = await this.database?.defaultCollection();
-    if (defaultCollection) {
-      collections.push(defaultCollection);
-      console.log('✅ Using default collection for sync');
+    // Create or get social.posts collection for posts
+    try {
+      const postsCollection = await this.database?.createCollection('posts', 'social');
+      if (postsCollection) {
+        collections.push(postsCollection);
+        console.log('✅ Using social.posts collection for sync');
+      } else {
+        console.error('❌ social.posts collection is null');
+      }
+    } catch (error) {
+      console.error('❌ Failed to create/get social.posts collection:', error);
     }
     
     console.log(`📦 Total collections for sync: ${collections.length}:`, collections.map(c => c.name));
@@ -186,7 +193,7 @@ export class DatabaseService {
    * @param searchTerm
    */
   public async getPostsBySearchTerm(searchTerm: string) {
-    const queryStr = `SELECT * FROM _default._default as doc WHERE doc.type = 'post' AND (doc.title LIKE '%${searchTerm}%' OR doc.body LIKE '%${searchTerm}%')`;
+    const queryStr = `SELECT * FROM social.posts as doc WHERE doc.type = 'post' AND (doc.title LIKE '%${searchTerm}%' OR doc.body LIKE '%${searchTerm}%')`;
     return this.database?.createQuery(queryStr).execute();
   }
 
@@ -195,7 +202,7 @@ export class DatabaseService {
    */
   public async getAllPosts() {
     try {
-      const queryStr = 'SELECT * FROM _default._default as doc WHERE doc.type = "post"';
+      const queryStr = 'SELECT * FROM social.posts as doc WHERE doc.type = "post"';
       return this.database?.createQuery(queryStr).execute();
     } catch (error) {
       console.debug(`Error: ${error}`);
@@ -212,7 +219,7 @@ export class DatabaseService {
         SELECT 
           doc.*, 
           meta().id AS docId 
-        FROM _default._default AS doc
+        FROM social.posts AS doc
         WHERE doc.type = 'post'
       `;
       return await this.database?.createQuery(queryStr).execute();
@@ -227,7 +234,7 @@ export class DatabaseService {
    */
   public async deletePost(docId: string) {
     try {
-      const postCollection = await this.database?.defaultCollection();
+      const postCollection = await this.getPostCollection();
       if (!postCollection) throw new Error('No collection available for deleting posts');
 
       // Get the document first
@@ -248,11 +255,11 @@ export class DatabaseService {
 
   public async deletePostById(postId: string) {
     try {
-      const postCollection = await this.database?.defaultCollection();
+      const postCollection = await this.getPostCollection();
       if (!postCollection) throw new Error('No collection available for deleting posts');
 
       // Query to find the document by post ID
-      const queryStr = `SELECT meta().id as docId FROM _default._default WHERE type = 'post' AND id = '${postId}'`;
+      const queryStr = `SELECT meta().id as docId FROM social.posts WHERE type = 'post' AND id = '${postId}'`;
       const result = await this.database?.createQuery(queryStr).execute();
       if (result && result.length > 0) {
         const docId = result[0].docId;
@@ -271,11 +278,11 @@ export class DatabaseService {
    */
   public async deleteAllPosts(): Promise<number> {
     try {
-      const postCollection = await this.database?.defaultCollection();
+      const postCollection = await this.getPostCollection();
       if (!postCollection) throw new Error('No collection available for deleting posts');
 
       // Query to find all post documents
-      const queryStr = `SELECT meta().id as docId FROM _default._default WHERE type = 'post'`;
+      const queryStr = `SELECT meta().id as docId FROM social.posts WHERE type = 'post'`;
       const result = await this.database?.createQuery(queryStr).execute();
       let deletedCount = 0;
       
@@ -298,50 +305,7 @@ export class DatabaseService {
     }
   }
 
-  /**
-   * returns an array of ResultSet objects for the locations that match the search terms of searchName, searchLocation, and activityType in the inventory.location collection
-   * @param searchName - string value to search in the name or title fields
-   * @param searchLocation - string value to search in the address, city, state, or country fields
-   * @param activityType - string value to filter for in the activity field
-   */
-  public async getLandmarkBySearchTerm(
-    searchName: string,
-    searchLocation: string,
-    activityType: string,
-  ) {
-    /*
-        for the first set we will allow for a search on the name, title, and content fields with the value being upper case or lower case by converting the search term to lower case and then searching for it in the lower case version of the fields
-         */
-    const nameLower = searchName.toLowerCase();
-    let queryStr = `SELECT * FROM inventory.landmark as landmark WHERE `;
-    let conditions: string[] = [];
-    if (nameLower !== '') {
-      conditions.push(
-        `(LOWER(landmark.name) LIKE '%${nameLower}%' OR LOWER(landmark.title) LIKE '%${nameLower}%' OR LOWER(landmark.content) LIKE '%${nameLower}%')`,
-      );
-    }
 
-    /*
-       for locations - the term must be the exact value and is case-sensitive to how it's stored in the database
-        */
-    if (searchLocation !== '') {
-      conditions.push(
-        `(landmark.address LIKE '%${searchLocation}%' OR landmark.city LIKE '%${searchLocation}%' OR landmark.state LIKE '%${searchLocation}%' OR landmark.country LIKE '%${searchLocation}%')`,
-      );
-    }
-
-    //we always filter by activity
-    conditions.push(
-      `landmark.activity = '${activityType}' ORDER BY landmark.name`,
-    );
-
-    if (conditions.length > 1) {
-      queryStr += conditions.join(' AND ');
-    } else {
-      queryStr += conditions.join();
-    }
-    return this.database?.createQuery(queryStr).execute();
-  }
 
   /**
    * Initializes the database by setting up logging and configuring the database.
@@ -360,6 +324,15 @@ export class DatabaseService {
       const path = await this.database?.getPath();
       console.debug(`Database Setup with path: ${path}`);
       await this.setupIndexes();
+      
+      // Ensure the posts collection exists before setting up replicator
+      const postsCollection = await this.getPostCollection();
+      console.log('✅ Posts collection created/ensured:', postsCollection.name);
+      
+      // Verify the collection is accessible
+      const allCollections = await this.database?.collections();
+      console.log('📊 All collections after posts creation:', allCollections?.map(c => c.name));
+      
       if (this.replicator === undefined) {
         await this.setupReplicator();
       }
@@ -370,27 +343,15 @@ export class DatabaseService {
     }
   }
 
-  async getHotelCollection() {
-    if (!this.database) throw new Error('Database not initialized');
-    const collection = await this.database.collection('hotel', 'inventory');
-    return collection;
-  }
+
 
   async getPostCollection() {
     if (!this.database) throw new Error('Database not initialized');
     
-    try {
-      // Try to get the post collection from inventory scope
-      const collection = await this.database.collection('post', 'inventory');
-      this.postCollection = collection;
-      return collection;
-    } catch (error) {
-      console.log('⚠️ Post collection not found in inventory scope, using default collection');
-      // Fallback to default collection
-      const defaultCollection = await this.database.defaultCollection();
-      this.postCollection = defaultCollection;
-      return defaultCollection;
-    }
+    // Create or get the posts collection from social scope
+    const collection = await this.database.createCollection('posts', 'social');
+    this.postCollection = collection;
+    return collection;
   }
 
   /**
@@ -413,73 +374,34 @@ export class DatabaseService {
     const dc = new DatabaseConfiguration();
     dc.setDirectory(directoryPath);
     dc.setEncryptionKey('8e31f8f6-60bd-482a-9c70-69855dd02c39');
+    
 
     const capellaConfig = getCapellaConfig();
     this.database = new Database(capellaConfig.DATABASE_NAME, dc);
+    
 
     await this.database.open();
     const collections = await this.database.collections();
     console.log(`📊 Database opened. Found ${collections.length} collections:`, collections.map(c => c.name));
     
-    // Only create collections if we need them for other features
-    // For now, we'll use only the default collection to avoid scope conflicts
-    console.log('✅ Using default collection only for sync');
+    console.log('✅ Database setup complete - social.posts collection will be created during initialization');
   }
 
-  async saveToCollection() {
-    const collection = await this.database?.defaultCollection();
-    if (!collection) return;
 
-    //create a document
-    const mutableDoc = new MutableDocument('doc-1');
-    mutableDoc.setFloat('version', 3.1);
-    mutableDoc.setString('type', 'SDK');
-
-    //save it to the database
-    await collection.save(mutableDoc);
-
-    //update the document
-    const document2 = await collection.document('doc-1');
-    const mutableDoc2 = MutableDocument.fromDocument(document2);
-    if (mutableDoc2) {
-      mutableDoc2.setString('language', 'Typescript');
-      await collection.save(mutableDoc2);
-    }
-
-    //create a query to get the documents of type SDK
-    const query = this.database?.createQuery(
-      'SELECT * FROM _default._default WHERE type = "SDK"',
-    );
-
-    //run the query
-    const results = await query?.execute();
-    if (!results) return;
-
-    console.log('Number of documents of type SDK: ' + results.length);
-
-    //loop through the results and do something with them
-    for (const item of results) {
-      //to something with the data
-      const doc = item['_default'];
-      console.log(doc.type);
-      console.log(doc.language);
-    }
-  }
 
 
 
   /**
-   * Sets up the indexes for the `hotel` and `landmark` collections in the database.
+   * Sets up the indexes for the database.
    *
-   * This function calls the `setupHotelIndexes` and `setupLandmarkIndexes` methods
-   * to create the necessary indexes for the `hotel` and `landmark` collections.
+   * Currently no specific indexes are needed for the social.posts collection.
    *
    * @private
    * @throws Will throw an error if the database is not initialized.
    */
   private async setupIndexes() {
     if (this.database !== undefined) {
-      console.log('✅ No specific indexes needed for default collection');
+      console.log('✅ No specific indexes needed for social.posts collection');
     }
   }
 
@@ -528,62 +450,51 @@ export class DatabaseService {
       config.setContinuous(true);
       config.setAcceptOnlySelfSignedCerts(false);
       
+      // Enable bidirectional sync
+      config.setReplicatorType(ReplicatorType.PUSH_AND_PULL);
+      
+      console.log('🔧 Replicator configuration:', {
+        type: 'PUSH_AND_PULL',
+        continuous: true,
+        collections: collections.map(c => c.name)
+      });
+      
       console.log(`🔄 Setting up replicator with ${collections.length} collections:`, collections.map(c => c.name));
       
       this.replicator = await Replicator.create(config);
       
-      console.log('✅ Replicator created successfully');
+      // Add replicator status listener
+      this.replicator.addChangeListener((status) => {
+        this.syncStatus = status;
+        
+        // Safely access progress data
+        const progressInfo = status.progress 
+          ? `${status.progress.completed || 0}/${status.progress.total || 0}`
+          : 'No progress data';
+          
+        console.log('🔄 Replicator status changed:', {
+          activity: status.activity || 'Unknown',
+          error: status.error?.message || 'No error',
+          progress: progressInfo
+        });
+        
+        // Notify listeners
+        this.syncListeners.forEach(listener => {
+          try {
+            listener(status);
+          } catch (error) {
+            console.error('Error in sync listener:', error);
+          }
+        });
+      });
+      
+      console.log('✅ Replicator created successfully with status listener');
     } else {
       throw new Error('No collections found to set replicator to');
     }
   }
 
-  public async saveHotel(hotelData: {
-    name: string;
-    address: string;
-    city: string;
-    country: string;
-    description: string;
-    vacancy: boolean;
-  }) {
-    try {
-      const hotelCollection = await this.database?.collection(
-        'hotel',
-        'inventory',
-      );
-      if (!hotelCollection) throw new Error('Hotel collection not found');
 
-      const docId = `hotel_${new Date().getTime()}`;
-      const doc = new MutableDocument(docId);
-
-      doc.setString('name', hotelData.name);
-      doc.setString('address', hotelData.address);
-      doc.setString('city', hotelData.city);
-      doc.setString('country', hotelData.country);
-      doc.setString('description', hotelData.description);
-      doc.setBoolean('vacancy', hotelData.vacancy);
-
-      await hotelCollection.save(doc);
-      console.log(`✅ Hotel document ${docId} saved.`);
-      return docId;
-    } catch (error) {
-      console.error('❌ Failed to save hotel:', error);
-      throw error;
-    }
-  }
-
-   /**
-   * Sets up the indexes for the `hotel` collection in the database.
-   *
-   * This function creates the following indexes for the `hotel` collection:
-   * - `idxTextSearch`: A full-text index on the `address`, `city`, `country`, and `description` fields.
-   * - `idxVacancy`: A value index on the `vacancy` field.
-   *
-   * The full-text index (`idxTextSearch`) is configured to ignore accents.
-   *
-   * @private
-   * @throws Will throw an error if the index creation fails.
-   */
 
 
 
@@ -594,8 +505,8 @@ export class DatabaseService {
     body: string;
   }) {
     try {
-      // Use default collection for posts
-      const postCollection = await this.database?.defaultCollection();
+      // Use social.posts collection for posts
+      const postCollection = await this.getPostCollection();
       if (!postCollection) throw new Error('No collection available for saving posts');
 
       const docId = `post_${new Date().getTime()}`;
@@ -608,7 +519,31 @@ export class DatabaseService {
       doc.setString('type', 'post'); // Add type for filtering
 
       await postCollection.save(doc);
-      console.log(`✅ Post document ${docId} saved.`);
+      console.log(`✅ Post document ${docId} saved to social.posts collection.`);
+      
+      // Ensure replicator is running for live sync
+      if (this.replicator) {
+        await this.ensureReplicatorRunning();
+        console.log(`🔄 Post will be synced to Capella automatically`);
+        
+        // Log current replicator status
+        const status = this.replicator.status;
+        if(status) {
+          const progressInfo = status.progress 
+            ? `${status.progress.completed || 0}/${status.progress.total || 0}`
+            : 'No progress data';
+            
+          console.log('📊 Current replicator status:', {
+            activity: status.activity || 'Unknown',
+            error: status.error?.message || 'No error',
+            progress: progressInfo
+          });
+        } else {
+          console.warn('⚠️ Replicator status not available');
+        }
+      } else {
+        console.warn('⚠️ Replicator not available for sync');
+      }
       
       return docId;
     } catch (error) {
@@ -622,7 +557,7 @@ export class DatabaseService {
   body: string;
 }) {
     try {
-      const postCollection = await this.database?.defaultCollection();
+      const postCollection = await this.getPostCollection();
       if (!postCollection) throw new Error('No collection available for updating posts');
 
       const existingDoc = await postCollection.getDocument(docId);
@@ -647,7 +582,7 @@ export class DatabaseService {
 
       // Save the updated document
       await postCollection.save(mutableDoc);
-      console.log(`✅ Document ${docId} updated successfully.`);
+      console.log(`✅ Document ${docId} updated successfully in social.posts collection.`);
       return true;
     } catch (error) {
       console.error(`❌ Failed to update post ${docId}:`, error);
@@ -656,10 +591,49 @@ export class DatabaseService {
   }
 
 
-  public getCachedPostCollection(): Collection {
-    if (!this.postCollection) {
-      throw new Error('Collection not initialized. Call init() first.');
+
+
+  /**
+   * Ensure replicator is running for live sync
+   */
+  private async ensureReplicatorRunning() {
+    try {
+      if (this.replicator) {
+        const status = this.replicator.status;
+        const activity = status.activity || 'Unknown';
+        console.log('🔍 Current replicator status:', activity);
+        
+        if (status && activity === 'STOPPED') {
+          console.log('🔄 Starting replicator for live sync...');
+          await this.replicator.start();
+        } else if (status && activity === 'IDLE') {
+          console.log('✅ Replicator is already running and idle');
+        } else {
+          console.log('🔄 Replicator is currently:', activity);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to ensure replicator is running:', error);
     }
-    return this.postCollection;
+  }
+
+  /**
+   * Get current replicator status for debugging
+   */
+  public getReplicatorStatus() {
+    if (this.replicator) {
+      const status = this.replicator.status;
+      const progressInfo = status.progress 
+        ? `${status.progress.completed || 0}/${status.progress.total || 0}`
+        : 'No progress data';
+        
+      return {
+        activity: status.activity || 'Unknown',
+        error: status.error?.message || null,
+        progress: progressInfo,
+        isRunning: status.activity !== 'STOPPED'
+      };
+    }
+    return null;
   }
 }

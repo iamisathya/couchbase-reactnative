@@ -20,7 +20,8 @@ class SyncService {
   private dbService: any = null;
 
   constructor() {
-    this.initializeNetworkListener();
+    // Network listener disabled
+    // this.initializeNetworkListener();
   }
 
   /**
@@ -34,12 +35,13 @@ class SyncService {
    * Initialize network listener for automatic sync
    */
   private initializeNetworkListener() {
-    NetworkService.addListener((status: NetworkStatus) => {
-      if (status.isConnected && status.isInternetReachable) {
-        // Network is back online, trigger sync
-        this.syncFromCloud();
-      }
-    });
+    // Network listener disabled
+    // NetworkService.addListener((status: NetworkStatus) => {
+    //   if (status.isConnected && status.isInternetReachable) {
+    //     // Network is back online, trigger sync
+    //     this.syncFromCloud();
+    //   }
+    // });
   }
 
   /**
@@ -461,7 +463,8 @@ class SyncService {
    * Clean up sync service
    */
   public cleanup() {
-    NetworkService.removeListener(this.initializeNetworkListener);
+    // Network listener disabled
+    // NetworkService.removeListener(this.initializeNetworkListener);
     this.listeners = [];
   }
 }

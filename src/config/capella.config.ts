@@ -9,7 +9,7 @@
 
 export const CAPELLA_CONFIG = {
   // Your Capella App Service endpoint URL
-  SYNC_GATEWAY_URL: 'wss://lrmbc7notplwhjuy.apps.cloud.couchbase.com:4984/couchbase-app-endpoint',
+  SYNC_GATEWAY_URL: 'wss://lrmbc7notplwhjuy.apps.cloud.couchbase.com:4984/couchbase-app-post-endpoint',
   
   // Database name (should match your Capella database name)
   DATABASE_NAME: 'couchbase-app-bucket',
@@ -24,8 +24,8 @@ export const CAPELLA_CONFIG = {
   SYNC: {
     continuous: true,
     acceptSelfSignedCerts: false,
-    // Collections to sync (will use default collection if others don't exist)
-    collections: ['_default'],
+    // Collections to sync (using social.posts collection)
+    collections: ['social.posts'],
   },
   
   // Network configuration

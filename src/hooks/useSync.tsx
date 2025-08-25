@@ -5,7 +5,12 @@ import { useDatabase } from '../../DatabaseProvider';
 
 export const useSync = () => {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(SyncService.getSyncStatus());
-  const [networkStatus, setNetworkStatus] = useState<NetworkStatus>(NetworkService.getCurrentStatus());
+  // Network monitoring disabled - provide default online status
+  const [networkStatus, setNetworkStatus] = useState<NetworkStatus>({
+    isConnected: true,
+    isInternetReachable: true,
+    type: 'wifi'
+  });
   const dbService = useDatabase();
 
   useEffect(() => {
@@ -17,17 +22,18 @@ export const useSync = () => {
       setSyncStatus(status);
     };
 
-    const networkListener = (status: NetworkStatus) => {
-      setNetworkStatus(status);
-    };
+    // Network listener disabled
+    // const networkListener = (status: NetworkStatus) => {
+    //   setNetworkStatus(status);
+    // };
 
     SyncService.addListener(syncListener);
-    NetworkService.addListener(networkListener);
+    // NetworkService.addListener(networkListener);
 
     // Cleanup
     return () => {
       SyncService.removeListener(syncListener);
-      NetworkService.removeListener(networkListener);
+      // NetworkService.removeListener(networkListener);
     };
   }, [dbService]);
 
