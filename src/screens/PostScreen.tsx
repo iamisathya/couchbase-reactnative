@@ -85,13 +85,13 @@ function PostScreen() {
     ]);
   }
 
-  const onPressEditPost = (item) => {
+  const onPressEditPost = (item: any) => {
     // Create the expected structure for EditPost screen
     const editItem = {
       post: {
-        id: item.id,
-        title: item.title,
-        body: item.body
+        id: item.doc.id,
+        title: item.doc.title,
+        body: item.doc.body
       },
       docId: item.docId
     };
@@ -143,7 +143,7 @@ function PostScreen() {
     
     // Handle the data structure from database query
     // The query returns: { docId, id, userId, title, body, type }
-    const { body, id, title, docId, userId } = item;
+    const { body, id, title, docId, userId } = item.doc;
     
     return (
       <View style={styles.postCard} key={index.toString()}>
