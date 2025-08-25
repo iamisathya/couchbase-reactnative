@@ -9,7 +9,7 @@
 
 export const CAPELLA_CONFIG = {
   // Your Capella App Service endpoint URL
-  SYNC_GATEWAY_URL: 'wss://lrmbc7notplwhjuy.apps.cloud.couchbase.com:4984/couchbase-app-endpoint',
+  SYNC_GATEWAY_URL: 'wss://lrmbc7notplwhjuy.apps.cloud.couchbase.com:4984/couchbase-app-post-endpoint',
   
   // Database name (should match your Capella database name)
   DATABASE_NAME: 'couchbase-app-bucket',

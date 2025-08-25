@@ -374,9 +374,11 @@ export class DatabaseService {
     const dc = new DatabaseConfiguration();
     dc.setDirectory(directoryPath);
     dc.setEncryptionKey('8e31f8f6-60bd-482a-9c70-69855dd02c39');
+    
 
     const capellaConfig = getCapellaConfig();
     this.database = new Database(capellaConfig.DATABASE_NAME, dc);
+    
 
     await this.database.open();
     const collections = await this.database.collections();
@@ -526,15 +528,19 @@ export class DatabaseService {
         
         // Log current replicator status
         const status = this.replicator.status;
-        const progressInfo = status.progress 
-          ? `${status.progress.completed || 0}/${status.progress.total || 0}`
-          : 'No progress data';
-          
-        console.log('📊 Current replicator status:', {
-          activity: status.activity || 'Unknown',
-          error: status.error?.message || 'No error',
-          progress: progressInfo
-        });
+        if(status) {
+          const progressInfo = status.progress 
+            ? `${status.progress.completed || 0}/${status.progress.total || 0}`
+            : 'No progress data';
+            
+          console.log('📊 Current replicator status:', {
+            activity: status.activity || 'Unknown',
+            error: status.error?.message || 'No error',
+            progress: progressInfo
+          });
+        } else {
+          console.warn('⚠️ Replicator status not available');
+        }
       } else {
         console.warn('⚠️ Replicator not available for sync');
       }
