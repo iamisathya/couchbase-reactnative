@@ -464,15 +464,25 @@ export class DatabaseService {
       // Add replicator status listener
       this.replicator.addChangeListener((status) => {
         this.syncStatus = status;
+        
+        // Safely access progress data
+        const progressInfo = status.progress 
+          ? `${status.progress.completed || 0}/${status.progress.total || 0}`
+          : 'No progress data';
+          
         console.log('🔄 Replicator status changed:', {
-          activity: status.activity,
+          activity: status.activity || 'Unknown',
           error: status.error?.message || 'No error',
-          progress: `${status.progress.completed}/${status.progress.total}`
+          progress: progressInfo
         });
         
         // Notify listeners
         this.syncListeners.forEach(listener => {
-          listener(status);
+          try {
+            listener(status);
+          } catch (error) {
+            console.error('Error in sync listener:', error);
+          }
         });
       });
       
@@ -516,10 +526,14 @@ export class DatabaseService {
         
         // Log current replicator status
         const status = this.replicator.status;
+        const progressInfo = status.progress 
+          ? `${status.progress.completed || 0}/${status.progress.total || 0}`
+          : 'No progress data';
+          
         console.log('📊 Current replicator status:', {
-          activity: status.activity,
+          activity: status.activity || 'Unknown',
           error: status.error?.message || 'No error',
-          progress: `${status.progress.completed}/${status.progress.total}`
+          progress: progressInfo
         });
       } else {
         console.warn('⚠️ Replicator not available for sync');
@@ -580,15 +594,16 @@ export class DatabaseService {
     try {
       if (this.replicator) {
         const status = this.replicator.status;
-        console.log('🔍 Current replicator status:', status.activity);
+        const activity = status.activity || 'Unknown';
+        console.log('🔍 Current replicator status:', activity);
         
-        if (status && status.activity === 'STOPPED') {
+        if (status && activity === 'STOPPED') {
           console.log('🔄 Starting replicator for live sync...');
           await this.replicator.start();
-        } else if (status && status.activity === 'IDLE') {
+        } else if (status && activity === 'IDLE') {
           console.log('✅ Replicator is already running and idle');
         } else {
-          console.log('🔄 Replicator is currently:', status.activity);
+          console.log('🔄 Replicator is currently:', activity);
         }
       }
     } catch (error) {
@@ -602,10 +617,14 @@ export class DatabaseService {
   public getReplicatorStatus() {
     if (this.replicator) {
       const status = this.replicator.status;
+      const progressInfo = status.progress 
+        ? `${status.progress.completed || 0}/${status.progress.total || 0}`
+        : 'No progress data';
+        
       return {
-        activity: status.activity,
+        activity: status.activity || 'Unknown',
         error: status.error?.message || null,
-        progress: `${status.progress.completed}/${status.progress.total}`,
+        progress: progressInfo,
         isRunning: status.activity !== 'STOPPED'
       };
     }
